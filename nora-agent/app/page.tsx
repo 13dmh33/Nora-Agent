@@ -32,7 +32,7 @@ export default function Home() {
           <p className="text-gray-400 text-center">Nora is ready. Say hello!</p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`p-3 rounded-lg max-w-sm ${m.role === "user" ? "bg-blue-100 ml-auto" : "bg-gray-100"}`}>
+          <div key={i} className={`p-3 rounded-lg max-w-sm ${m.role === "user" ? "bg-blue-600 text-white ml-auto" : "bg-gray-200 text-gray-900"}`}>
             <p className="text-sm font-semibold">{m.role === "user" ? "You" : "Nora"}</p>
             <p>{m.content}</p>
           </div>
