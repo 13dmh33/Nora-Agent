@@ -31,7 +31,6 @@ Always be warm, professional, and concise.`,
   if (content.type === "text") {
     const text = content.text;
 
-    // Check if Nora captured a lead
     if (text.includes("LEAD_CAPTURED:")) {
       try {
         const jsonStr = text.split("LEAD_CAPTURED:")[1].trim();
@@ -48,7 +47,6 @@ Always be warm, professional, and concise.`,
       }
     }
 
-    // Remove the LEAD_CAPTURED block from what customer sees
     const cleanText = text.split("LEAD_CAPTURED:")[0].trim();
     return Response.json({ message: cleanText });
   }

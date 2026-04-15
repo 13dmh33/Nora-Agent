@@ -3,7 +3,7 @@
 
   // Create bubble button
   const bubble = document.createElement("button");
-  bubble.innerText = "+";
+  bubble.innerHTML = "💬";
   bubble.style.cssText = `
     position: fixed; bottom: 24px; right: 24px;
     width: 60px; height: 60px; border-radius: 50%;
@@ -23,8 +23,12 @@
   `;
 
   chatWindow.innerHTML = `
-    <div style="background:#2E5B8A;color:white;padding:16px;font-weight:bold;font-size:16px;">
-      Chat with Nora
+    <div style="background:#2E5B8A;color:white;padding:16px;display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:white;color:#2E5B8A;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;flex-shrink:0;">N</div>
+      <div>
+        <div style="font-weight:bold;font-size:15px;">Nora</div>
+        <div style="font-size:11px;opacity:0.85;">AI Assistant — typically replies instantly</div>
+      </div>
     </div>
     <div id="nora-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;">
       <p style="color:#aaa;text-align:center;margin-top:20px;">Nora is ready. Say hello!</p>
