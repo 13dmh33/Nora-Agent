@@ -57,9 +57,10 @@ Always be warm, professional, and concise.`,
       };
 
       console.log("Lead captured:", lead);
+      console.log("Attempting email send with key:", process.env.RESEND_API_KEY ? "key exists" : "NO KEY FOUND");
 
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: "Nora <onboarding@resend.dev>",
         to: "13dmh33@gmail.com",
         subject: `New Lead: ${lead.name} — ${lead.issue}`,
@@ -74,10 +75,10 @@ Always be warm, professional, and concise.`,
         `,
       });
 
-      console.log("Email sent successfully");
+      console.log("Email result:", JSON.stringify(emailResult));
       text = text.replace(/<<LEAD>>[\s\S]*?<<END>>/, "").trim();
-    } catch (e) {
-      console.error("Lead error:", e);
+    } catch (e: any) {
+      console.error("Lead error:", e?.message || e);
     }
   }
 
