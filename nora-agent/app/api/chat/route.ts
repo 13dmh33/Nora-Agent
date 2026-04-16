@@ -39,7 +39,7 @@ Always be warm, professional, and concise.`,
   console.log("Raw Nora response:", text);
 
   if (text.includes("LEAD_CAPTURED:")) {
-    const match = text.match(/LEAD_CAPTURED:\s*(\{.*?\})/s);
+    const match = text.match(/LEAD_CAPTURED:\s*(\{[\s\S]*?\})/);
     if (match) {
       try {
         const lead = JSON.parse(match[1]);
@@ -67,7 +67,7 @@ Always be warm, professional, and concise.`,
         console.error("Lead processing error:", e);
       }
     }
-    text = text.replace(/LEAD_CAPTURED:.*$/ms, "").trim();
+    text = text.replace(/LEAD_CAPTURED:[\s\S]*?$/, "").trim();
   }
 
   return Response.json({ message: text });
