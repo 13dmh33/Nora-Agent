@@ -61,7 +61,7 @@ Always be warm, professional, and concise.`,
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: "Nora <onboarding@resend.dev>",
-        to: "tradescalesolutions2026@gmail.com",
+        to: "13dmh33@gmail.com",
         subject: `New Lead: ${lead.name} — ${lead.issue}`,
         html: `
           <h2>New Lead Captured by Nora</h2>
