@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 
 const client = new Anthropic();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
@@ -46,6 +45,8 @@ Always be warm, professional, and concise.`,
         lead.timestamp = new Date().toISOString();
 
         console.log("Lead captured:", lead);
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
 
         await resend.emails.send({
           from: "Nora <onboarding@resend.dev>",
