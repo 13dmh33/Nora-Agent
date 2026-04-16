@@ -1,74 +1,209 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { Resend } from "resend";
+cat > /workspaces/Nora-Agent/nora-agent/public/demo.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mike's Plumbing — Denver's Trusted Plumber</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #333; }
 
-const client = new Anthropic();
-const resend = new Resend(process.env.RESEND_API_KEY);
+    /* Header */
+    header { background: #2C4A7C; color: white; padding: 20px 40px; }
+    header h1 { font-size: 28px; }
+    header p { font-size: 14px; opacity: 0.85; margin-top: 4px; }
 
-export async function POST(request: Request) {
-  const { messages } = await request.json();
+    /* Hero */
+    .hero { background: #f4f4f4; text-align: center; padding: 80px 20px; }
+    .hero h2 { font-size: 42px; color: #222; margin-bottom: 16px; }
+    .hero p { font-size: 18px; color: #555; max-width: 560px; margin: 0 auto; }
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    system: `You are Nora, a friendly AI assistant for a plumbing company.
-Your job is to help customers book appointments and handle inquiries.
+    /* Services */
+    .services { display: flex; justify-content: center; gap: 24px; padding: 60px 40px; flex-wrap: wrap; }
+    .service-card { border: 1px solid #ddd; border-radius: 12px; padding: 32px 24px; width: 220px; text-align: center; }
+    .service-card h3 { color: #2C4A7C; font-size: 18px; margin-bottom: 8px; }
+    .service-card p { color: #666; font-size: 14px; }
 
-When a customer contacts you:
-1. Greet them warmly and ask what plumbing issue they're experiencing
-2. Identify the issue type: leak, clog, no hot water, or install/quote
-3. Ask if it's an emergency or routine
-4. If emergency: express urgency, collect their info immediately
-5. If routine: collect name, phone, email, service address
-6. Provide a Calendly booking link: https://calendly.com/tradescalesolutions2026
+    /* Footer */
+    footer { background: #222; color: #aaa; text-align: center; padding: 24px; font-size: 13px; }
 
-CRITICAL INSTRUCTION: Once you have collected ALL of the following: name, phone, email, address, and issue type — you MUST append this exact JSON block at the very end of your response. No exceptions. Do not skip it. Do not forget it.
+    /* Chat bubble */
+    #chat-bubble {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 60px; height: 60px; border-radius: 50%;
+      background: #2C4A7C; color: white;
+      font-size: 28px; border: none; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
 
-LEAD_CAPTURED: {"name":"[name]","phone":"[phone]","email":"[email]","address":"[address]","issue":"[issue]"}
+    /* Chat window */
+    #chat-window {
+      position: fixed; bottom: 100px; right: 28px;
+      width: 360px; height: 520px;
+      background: white; border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      display: none; flex-direction: column;
+      z-index: 1000; overflow: hidden;
+    }
+    #chat-window.open { display: flex; }
 
-Replace the bracketed values with the actual customer data. This line must appear even if you have already provided the Calendly link.
+    #chat-header {
+      background: #2C4A7C; color: white;
+      padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #chat-header .info h3 { font-size: 16px; }
+    #chat-header .info p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    #chat-header button { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
 
-Always be warm, professional, and concise.`,
-    messages,
-  });
+    #chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
 
-  const content = response.content[0];
-  if (content.type !== "text") return Response.json({ message: "" });
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+    .msg.nora { background: #f0f0f0; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg.user { background: #2C4A7C; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.typing { color: #999; font-style: italic; }
 
-  let text = content.text;
+    #chat-input-area {
+      padding: 12px 16px; border-top: 1px solid #eee;
+      display: flex; gap: 8px;
+    }
+    #chat-input {
+      flex: 1; border: 1px solid #ddd; border-radius: 20px;
+      padding: 8px 14px; font-size: 14px; outline: none;
+    }
+    #chat-send {
+      background: #2C4A7C; color: white; border: none;
+      border-radius: 20px; padding: 8px 18px;
+      font-size: 14px; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
 
-  console.log("Raw Nora response:", text);
+  <header>
+    <h1>Mike's Plumbing</h1>
+    <p>Denver's Trusted Plumber — Licensed &amp; Insured</p>
+  </header>
 
-  if (text.includes("LEAD_CAPTURED:")) {
-    const match = text.match(/LEAD_CAPTURED:\s*(\{.*?\})/s);
-    if (match) {
-      try {
-        const lead = JSON.parse(match[1]);
-        lead.timestamp = new Date().toISOString();
+  <section class="hero">
+    <h2>Fast, Reliable Plumbing Service</h2>
+    <p>Available 24/7 for emergencies. Serving Denver and surrounding areas since 2005.</p>
+  </section>
 
-        console.log("Lead captured:", lead);
+  <section class="services">
+    <div class="service-card">
+      <h3>Leaks</h3>
+      <p>Fast diagnosis and repair</p>
+    </div>
+    <div class="service-card">
+      <h3>Clogs</h3>
+      <p>Drain cleaning &amp; hydrojetting</p>
+    </div>
+    <div class="service-card">
+      <h3>Water Heaters</h3>
+      <p>Repair and replacement</p>
+    </div>
+    <div class="service-card">
+      <h3>Installs</h3>
+      <p>Fixtures, pipes &amp; more</p>
+    </div>
+  </section>
 
-        await resend.emails.send({
-          from: "Nora <onboarding@resend.dev>",
-          to: "tradescalesolutions2026@gmail.com",
-          subject: `New Lead: ${lead.name} — ${lead.issue}`,
-          html: `
-            <h2>New Lead Captured by Nora</h2>
-            <p><strong>Name:</strong> ${lead.name}</p>
-            <p><strong>Phone:</strong> ${lead.phone}</p>
-            <p><strong>Email:</strong> ${lead.email}</p>
-            <p><strong>Address:</strong> ${lead.address}</p>
-            <p><strong>Issue:</strong> ${lead.issue}</p>
-            <p><strong>Time:</strong> ${lead.timestamp}</p>
-          `,
-        });
+  <footer>
+    <p>&copy; 2026 Mike's Plumbing. All rights reserved.</p>
+  </footer>
 
-        console.log("Email sent successfully");
-      } catch (e) {
-        console.error("Lead processing error:", e);
+  <!-- Chat Bubble -->
+  <button id="chat-bubble" onclick="toggleChat()">💬</button>
+
+  <!-- Chat Window -->
+  <div id="chat-window">
+    <div id="chat-header">
+      <div class="info">
+        <h3>Nora — Mike's Plumbing</h3>
+        <p>AI Assistant • Always available</p>
+      </div>
+      <button onclick="toggleChat()">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-area">
+      <input id="chat-input" type="text" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button id="chat-send" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const messages = [];
+    let isOpen = false;
+    let greeted = false;
+
+    function toggleChat() {
+      isOpen = !isOpen;
+      const win = document.getElementById('chat-window');
+      win.classList.toggle('open', isOpen);
+      if (isOpen && !greeted) {
+        greeted = true;
+        setTimeout(() => addMessage('nora', "Hi! I'm Nora 👋 I'm here to help you book with Mike's Plumbing. What plumbing issue can I help you with today?"), 400);
       }
     }
-    text = text.replace(/LEAD_CAPTURED:.*$/ms, "").trim();
-  }
 
-  return Response.json({ message: text });
-}
+    function addMessage(role, text) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = text;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showTyping() {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'msg typing';
+      div.id = 'typing-indicator';
+      div.textContent = 'Nora is typing...';
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      addMessage('user', text);
+      messages.push({ role: 'user', content: text });
+      showTyping();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages })
+        });
+        const data = await res.json();
+        removeTyping();
+        addMessage('nora', data.message);
+        messages.push({ role: 'assistant', content: data.message });
+      } catch (e) {
+        removeTyping();
+        addMessage('nora', 'Sorry, something went wrong. Please try again.');
+      }
+    }
+  </script>
+
+</body>
+</html>
+HTMLEOF
