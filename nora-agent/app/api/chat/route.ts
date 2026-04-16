@@ -3,28 +3,6 @@ import { Resend } from "resend";
 
 const client = new Anthropic();
 
-function extractLeadFromMessages(messages: {role: string, content: string}[]) {
-  const conversation = messages.map(m => m.content).join(" ");
-  
-  const nameMatch = conversation.match(/(?:name is|I'm|I am|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
-  const phoneMatch = conversation.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/);
-  const emailMatch = conversation.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-  const addressMatch = conversation.match(/(\d+\s+[A-Za-z0-9\s,]+(?:Ave|St|Rd|Dr|Blvd|Way|Ln|Ct|Pl|Drive|Street|Avenue|Road|Boulevard|Lane|Court)[^,]*,?\s*[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5})/i);
-  const issueMatch = conversation.match(/\b(leak|clog|no hot water|hot water|install|quote)\b/i);
-
-  if (nameMatch && phoneMatch && emailMatch && addressMatch && issueMatch) {
-    return {
-      name: nameMatch[1],
-      phone: phoneMatch[1],
-      email: emailMatch[1],
-      address: addressMatch[1].trim(),
-      issue: issueMatch[1],
-      timestamp: new Date().toISOString()
-    };
-  }
-  return null;
-}
-
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
@@ -42,6 +20,16 @@ When a customer contacts you:
 5. If routine: collect name, phone, email, service address
 6. Once you have all info, provide the Calendly booking link: https://calendly.com/tradescalesolutions2026
 
+IMPORTANT: When you have collected all customer information, you MUST include this summary block in your response exactly as shown, filling in the actual values:
+
+<<LEAD>>
+name: [customer name]
+phone: [phone number]
+email: [email address]
+address: [full address]
+issue: [issue type]
+<<END>>
+
 Always be warm, professional, and concise.`,
     messages,
   });
@@ -49,18 +37,28 @@ Always be warm, professional, and concise.`,
   const content = response.content[0];
   if (content.type !== "text") return Response.json({ message: "" });
 
-  const text = content.text;
+  let text = content.text;
 
-  // Check if all lead fields are present in conversation
-  const allMessages = [...messages, { role: "assistant", content: text }];
-  const lead = extractLeadFromMessages(allMessages);
+  console.log("Raw response:", text);
 
-  if (lead) {
+  if (text.includes("<<LEAD>>") && text.includes("<<END>>")) {
     try {
-      console.log("Lead detected:", lead);
+      const block = text.match(/<<LEAD>>([\s\S]*?)<<END>>/)?.[1] || "";
+      const get = (field: string) =>
+        block.match(new RegExp(`${field}:\\s*(.+)`))?.[1]?.trim() || "";
+
+      const lead = {
+        name: get("name"),
+        phone: get("phone"),
+        email: get("email"),
+        address: get("address"),
+        issue: get("issue"),
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log("Lead captured:", lead);
 
       const resend = new Resend(process.env.RESEND_API_KEY);
-
       await resend.emails.send({
         from: "Nora <onboarding@resend.dev>",
         to: "tradescalesolutions2026@gmail.com",
@@ -77,8 +75,9 @@ Always be warm, professional, and concise.`,
       });
 
       console.log("Email sent successfully");
+      text = text.replace(/<<LEAD>>[\s\S]*?<<END>>/, "").trim();
     } catch (e) {
-      console.error("Email error:", e);
+      console.error("Lead error:", e);
     }
   }
 
