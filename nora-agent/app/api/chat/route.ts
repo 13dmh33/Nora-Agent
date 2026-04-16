@@ -3,6 +3,28 @@ import { Resend } from "resend";
 
 const client = new Anthropic();
 
+function extractLeadFromMessages(messages: {role: string, content: string}[]) {
+  const conversation = messages.map(m => m.content).join(" ");
+  
+  const nameMatch = conversation.match(/(?:name is|I'm|I am|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
+  const phoneMatch = conversation.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/);
+  const emailMatch = conversation.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  const addressMatch = conversation.match(/(\d+\s+[A-Za-z0-9\s,]+(?:Ave|St|Rd|Dr|Blvd|Way|Ln|Ct|Pl|Drive|Street|Avenue|Road|Boulevard|Lane|Court)[^,]*,?\s*[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5})/i);
+  const issueMatch = conversation.match(/\b(leak|clog|no hot water|hot water|install|quote)\b/i);
+
+  if (nameMatch && phoneMatch && emailMatch && addressMatch && issueMatch) {
+    return {
+      name: nameMatch[1],
+      phone: phoneMatch[1],
+      email: emailMatch[1],
+      address: addressMatch[1].trim(),
+      issue: issueMatch[1],
+      timestamp: new Date().toISOString()
+    };
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
@@ -18,13 +40,7 @@ When a customer contacts you:
 3. Ask if it's an emergency or routine
 4. If emergency: express urgency, collect their info immediately
 5. If routine: collect name, phone, email, service address
-6. Provide a Calendly booking link: https://calendly.com/tradescalesolutions2026
-
-CRITICAL INSTRUCTION: Once you have collected ALL of the following: name, phone, email, address, and issue type — you MUST append this exact JSON block at the very end of your response. No exceptions. Do not skip it. Do not forget it.
-
-LEAD_CAPTURED: {"name":"[name]","phone":"[phone]","email":"[email]","address":"[address]","issue":"[issue]"}
-
-Replace the bracketed values with the actual customer data. This line must appear even if you have already provided the Calendly link.
+6. Once you have all info, provide the Calendly booking link: https://calendly.com/tradescalesolutions2026
 
 Always be warm, professional, and concise.`,
     messages,
@@ -33,42 +49,37 @@ Always be warm, professional, and concise.`,
   const content = response.content[0];
   if (content.type !== "text") return Response.json({ message: "" });
 
-  let text = content.text;
+  const text = content.text;
 
-  console.log("Raw Nora response:", text);
+  // Check if all lead fields are present in conversation
+  const allMessages = [...messages, { role: "assistant", content: text }];
+  const lead = extractLeadFromMessages(allMessages);
 
-  if (text.includes("LEAD_CAPTURED:")) {
-    const match = text.match(/LEAD_CAPTURED:\s*(\{[\s\S]*?\})/);
-    if (match) {
-      try {
-        const lead = JSON.parse(match[1]);
-        lead.timestamp = new Date().toISOString();
+  if (lead) {
+    try {
+      console.log("Lead detected:", lead);
 
-        console.log("Lead captured:", lead);
+      const resend = new Resend(process.env.RESEND_API_KEY);
 
-        const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: "Nora <onboarding@resend.dev>",
+        to: "tradescalesolutions2026@gmail.com",
+        subject: `New Lead: ${lead.name} — ${lead.issue}`,
+        html: `
+          <h2>New Lead Captured by Nora</h2>
+          <p><strong>Name:</strong> ${lead.name}</p>
+          <p><strong>Phone:</strong> ${lead.phone}</p>
+          <p><strong>Email:</strong> ${lead.email}</p>
+          <p><strong>Address:</strong> ${lead.address}</p>
+          <p><strong>Issue:</strong> ${lead.issue}</p>
+          <p><strong>Time:</strong> ${lead.timestamp}</p>
+        `,
+      });
 
-        await resend.emails.send({
-          from: "Nora <onboarding@resend.dev>",
-          to: "tradescalesolutions2026@gmail.com",
-          subject: `New Lead: ${lead.name} — ${lead.issue}`,
-          html: `
-            <h2>New Lead Captured by Nora</h2>
-            <p><strong>Name:</strong> ${lead.name}</p>
-            <p><strong>Phone:</strong> ${lead.phone}</p>
-            <p><strong>Email:</strong> ${lead.email}</p>
-            <p><strong>Address:</strong> ${lead.address}</p>
-            <p><strong>Issue:</strong> ${lead.issue}</p>
-            <p><strong>Time:</strong> ${lead.timestamp}</p>
-          `,
-        });
-
-        console.log("Email sent successfully");
-      } catch (e) {
-        console.error("Lead processing error:", e);
-      }
+      console.log("Email sent successfully");
+    } catch (e) {
+      console.error("Email error:", e);
     }
-    text = text.replace(/LEAD_CAPTURED:[\s\S]*?$/, "").trim();
   }
 
   return Response.json({ message: text });
