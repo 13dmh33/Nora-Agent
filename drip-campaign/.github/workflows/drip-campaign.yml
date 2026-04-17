@@ -1,0 +1,28 @@
+name: Drip Campaign
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # 6:00 AM MST (UTC-7) daily
+  workflow_dispatch:       # manual trigger from GitHub UI
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r drip-campaign/requirements.txt
+
+      - name: Run drip campaign
+        working-directory: drip-campaign
+        env:
+          GMAIL_USER:              ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:      ${{ secrets.GMAIL_APP_PASSWORD }}
+          ANTHROPIC_API_KEY:       ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: python main.py
