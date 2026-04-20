@@ -45,7 +45,7 @@ def personalize(template: str, contact: dict) -> dict | None:
         system=(
             "You personalize email templates for sales outreach. "
             "Return only valid JSON with 'subject' and 'body' keys. "
-            "Body must be HTML formatted. Use only ASCII characters."
+            "Body must be HTML formatted. Use only standard ASCII characters."
         ),
         messages=[{
             "role": "user",
@@ -78,7 +78,7 @@ def send_email(to_email: str, subject: str, body: str):
     msg.attach(MIMEText(body, "html", "utf-8"))
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(gmail_user, gmail_password)
-        smtp.sendmail(gmail_user, to_email, msg.as_string())
+        smtp.send_message(msg)
 
 def run():
     sheet = get_sheet()
@@ -130,3 +130,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
