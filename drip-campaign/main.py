@@ -4,6 +4,7 @@ import smtplib
 import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import Header
 from datetime import datetime
 
 import gspread
@@ -72,7 +73,7 @@ def send_email(to_email: str, subject: str, body: str):
     gmail_user = os.environ["GMAIL_USER"]
     gmail_password = os.environ["GMAIL_APP_PASSWORD"]
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
+    msg["Subject"] = Header(subject, "utf-8")
     msg["From"] = gmail_user
     msg["To"] = to_email
     msg.attach(MIMEText(body, "html", "utf-8"))
@@ -130,4 +131,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
