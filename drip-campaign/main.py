@@ -2,6 +2,7 @@ import os
 import json
 import smtplib
 import re
+import traceback
 from email.message import EmailMessage
 from datetime import datetime
 
@@ -82,6 +83,10 @@ def send_email(to_email: str, subject: str, body: str):
     subject = clean(subject)
     body = body.encode('ascii', 'xmlcharrefreplace').decode('ascii')
 
+    print(f"DEBUG from: {repr(gmail_user)}")
+    print(f"DEBUG to: {repr(to_email)}")
+    print(f"DEBUG subject: {repr(subject[:50])}")
+
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = gmail_user
@@ -140,6 +145,7 @@ def run():
             send_email(email, personalized["subject"], personalized["body"])
         except Exception as e:
             print(f"ERROR: Failed to send to {email}: {e}")
+            traceback.print_exc()
             errors += 1
             continue
 
