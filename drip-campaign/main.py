@@ -25,11 +25,17 @@ COL_EMAIL_STAGE = 6
 COL_UNSUBSCRIBE = 7
 COL_LAST_SENT   = 8
 
+
+def clean(text: str) -> str:
+    return text.replace('\xa0', ' ').replace('\u2014', '--').replace('\u2013', '-').strip()
+
+
 def get_sheet():
     creds_data = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
     creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
     client = gspread.authorize(creds)
     return client.open_by_key(SHEET_ID).sheet1
+
 
 def load_template(step: int) -> str | None:
     path = os.path.join(TEMPLATES_DIR, f"email_{step:02d}.md")
@@ -37,6 +43,7 @@ def load_template(step: int) -> str | None:
         return None
     with open(path, encoding="utf-8") as f:
         return f.read()
+
 
 def personalize(template: str, contact: dict) -> dict | None:
     client = anthropic.Anthropic()
@@ -69,17 +76,24 @@ def personalize(template: str, contact: dict) -> dict | None:
         return None
     return json.loads(match.group())
 
+
 def send_email(to_email: str, subject: str, body: str):
     gmail_user = os.environ["GMAIL_USER"]
     gmail_password = os.environ["GMAIL_APP_PASSWORD"]
+
+    to_email = clean(to_email).replace(' ', '')
+    subject = clean(subject)
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = Header(subject, "utf-8")
     msg["From"] = gmail_user
     msg["To"] = to_email
     msg.attach(MIMEText(body, "html", "utf-8"))
+
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(gmail_user, gmail_password)
-        smtp.send_message(msg)
+        smtp.sendmail(gmail_user, to_email, msg.as_bytes())
+
 
 def run():
     sheet = get_sheet()
@@ -94,40 +108,50 @@ def run():
         if unsubscribed in ("Y", "YES", "TRUE", "1"):
             skipped += 1
             continue
-        email = str(row.get("Email", "")).strip()
+
+        email = clean(str(row.get("Email", "")))
         if not email:
             skipped += 1
             continue
+
+        print(f"Processing: {repr(email)}")
+
         current_step = int(row.get("Email Stage") or 0)
         next_step = current_step + 1
+
         template = load_template(next_step)
         if template is None:
             skipped += 1
             continue
+
         contact = {
-            "company": str(row.get("Company name", "")),
+            "company": clean(str(row.get("Company name", ""))),
             "email":   email,
-            "url":     str(row.get("URL", "")),
-            "phone":   str(row.get("Phone Number", "")),
-            "notes":   str(row.get("Notes", "")),
+            "url":     clean(str(row.get("URL", ""))),
+            "phone":   clean(str(row.get("Phone Number", ""))),
+            "notes":   clean(str(row.get("Notes", ""))),
         }
+
         personalized = personalize(template, contact)
         if personalized is None:
             print(f"ERROR: Could not personalize for {email}")
             errors += 1
             continue
+
         try:
             send_email(email, personalized["subject"], personalized["body"])
         except Exception as e:
             print(f"ERROR: Failed to send to {email}: {e}")
             errors += 1
             continue
+
         sheet.update_cell(i, COL_EMAIL_STAGE, next_step)
         sheet.update_cell(i, COL_LAST_SENT, today)
         sent += 1
         print(f"Sent email {next_step} to {email}")
 
-    print(f"\nDone — Sent: {sent} | Skipped: {skipped} | Errors: {errors}")
+    print(f"\nDone - Sent: {sent} | Skipped: {skipped} | Errors: {errors}")
+
 
 if __name__ == "__main__":
     run()
