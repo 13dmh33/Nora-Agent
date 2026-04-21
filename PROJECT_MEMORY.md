@@ -36,6 +36,14 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 | P4 Packaging | May 12–16 | Client onboarding docs, pricing page, domain | Upcoming |
 | P5 Test + Launch | May 19–23 | Land Customer 1 | Upcoming |
 
+**P3 progress as of Apr 21, 2026:**
+- ✅ `/api/sms` endpoint built — Twilio webhook, existing customer routing, AI for new customers
+- ✅ `customers.json` created — E.164 phone list for existing customer lookup
+- ✅ Contractor notification wired — email (always) + SMS (when TWILIO_* vars set)
+- ⏳ Twilio account setup + end-to-end SMS test — pending
+- ⏳ Resend domain verification — pending
+- ⏳ Persistent lead/customer storage — pending
+
 ---
 
 ## Tech Stack
@@ -120,19 +128,19 @@ Twilio cost (~$1/mo + fractions per message) is built into pricing.
 - `leads.json` and `customers.json` reset on every Vercel deployment — ephemeral. Persistent storage (Supabase or Google Sheets) is a P3/P4 item.
 - Resend free tier requires domain verification for reliable delivery. Currently using `onboarding@resend.dev` as sender.
 - SMS conversation memory is in-memory only — lost on server restart. Fine for MVP since most conversations complete in one session.
-- The Claude GitHub App currently only has read access to this repo — write access needs to be granted at github.com/settings/installations.
+- ~~The Claude GitHub App currently only has read access to this repo~~ — **resolved Apr 21, 2026. Write access granted, push working.**
 
 ---
 
 ## P3 Remaining Work
 
-| Task | Priority |
-|---|---|
-| Fix Resend email delivery (domain verification) | High |
-| Persistent lead + customer storage (Supabase / Google Sheets) | High |
-| Twilio setup + test SMS end-to-end | High |
-| Calendly per-contractor dynamic link | Medium |
-| SMS notifications via Twilio to contractor | Medium (env vars wired, needs testing) |
+| Task | Priority | Status |
+|---|---|---|
+| Fix Resend email delivery (domain verification) | High | Pending |
+| Persistent lead + customer storage (Supabase / Google Sheets) | High | Pending |
+| Twilio account setup + end-to-end SMS test | High | Pending |
+| Calendly per-contractor dynamic link | Medium | Pending |
+| SMS notifications via Twilio to contractor | Medium | Code wired, needs TWILIO_* env vars set |
 
 ---
 
@@ -146,6 +154,15 @@ When onboarding a new client:
 - [ ] Deploy new Vercel project
 - [ ] Point client's Twilio number webhook → `https://<new-vercel-url>/api/sms`
 - [ ] Share `customers.json` edit access so contractor can add existing customers
+
+---
+
+---
+
+## Dev Branch
+
+Active development branch: `claude/migrate-chatbot-cloud-bkdS3`
+Pushed to GitHub: Apr 21, 2026
 
 ---
 
