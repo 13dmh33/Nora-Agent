@@ -2,9 +2,8 @@ import os
 import json
 import smtplib
 import re
-import traceback
 from email.message import EmailMessage
-from datetime import datetime
+from datetime import datetime, date
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -14,6 +13,16 @@ SHEET_ID = "1SqsfXLNvJsJxWcgIvvJNgk1L0O5IL3D1S8nSc7Ss6JU"
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
+# Days to wait after last send before sending the next email
+DAYS_AFTER_LAST = {
+    1: 0,   # email 1: send immediately
+    2: 3,   # email 2: day 4 (3 days after email 1)
+    3: 3,   # email 3: day 7 (3 days after email 2)
+    4: 4,   # email 4: day 11 (4 days after email 3)
+    5: 2,   # email 5: day 13 (2 days after email 4)
+}
+
+# Company name | URL | Phone Number | Email | Notes | Email Stage | Unsubscribe | Last Sent
 COL_COMPANY     = 1
 COL_URL         = 2
 COL_PHONE       = 3
@@ -83,10 +92,6 @@ def send_email(to_email: str, subject: str, body: str):
     subject = clean(subject)
     body = body.encode('ascii', 'xmlcharrefreplace').decode('ascii')
 
-    print(f"DEBUG from: {repr(gmail_user)}")
-    print(f"DEBUG to: {repr(to_email)}")
-    print(f"DEBUG subject: {repr(subject[:50])}")
-
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = gmail_user
@@ -117,10 +122,21 @@ def run():
             skipped += 1
             continue
 
-        print(f"Processing: {repr(email)}")
-
         current_step = int(row.get("Email Stage") or 0)
         next_step = current_step + 1
+
+        # Check timing — skip if not enough days have passed since last send
+        if next_step > 1:
+            last_sent_str = str(row.get("Last Sent", "")).strip()
+            if not last_sent_str:
+                skipped += 1
+                continue
+            last_sent = datetime.strptime(last_sent_str, "%Y-%m-%d").date()
+            days_since = (date.today() - last_sent).days
+            required = DAYS_AFTER_LAST.get(next_step, 999)
+            if days_since < required:
+                skipped += 1
+                continue
 
         template = load_template(next_step)
         if template is None:
@@ -145,7 +161,6 @@ def run():
             send_email(email, personalized["subject"], personalized["body"])
         except Exception as e:
             print(f"ERROR: Failed to send to {email}: {e}")
-            traceback.print_exc()
             errors += 1
             continue
 
