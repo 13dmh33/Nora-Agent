@@ -11,12 +11,15 @@ let cachedEventTypeId: number | null = null;
 
 async function getEventTypeId(): Promise<number> {
   if (cachedEventTypeId) return cachedEventTypeId;
-  const res = await fetch(
-    `https://api.cal.com/v1/event-types?apiKey=${process.env.CAL_API_KEY}`
-  );
+  const url = `https://api.cal.com/v1/event-types?apiKey=${process.env.CAL_API_KEY}`;
+  const res = await fetch(url);
   const data = await res.json();
+  console.log("[Cal.com] event-types response:", JSON.stringify(data).slice(0, 500));
   const match = data.event_types?.find((et: any) => et.slug === "30min");
-  if (!match) throw new Error("Cal.com event type '30min' not found");
+  if (!match) {
+    const slugs = data.event_types?.map((et: any) => et.slug) ?? [];
+    throw new Error(`Cal.com event type '30min' not found. Available slugs: ${slugs.join(", ")}`);
+  }
   cachedEventTypeId = match.id;
   return match.id;
 }
@@ -40,6 +43,7 @@ async function getAvailableSlots(urgency: string): Promise<string> {
 
     const res = await fetch(`https://api.cal.com/v1/slots?${params}`);
     const data = await res.json();
+    console.log("[Cal.com] slots response:", JSON.stringify(data).slice(0, 500));
 
     const slots: { time: string; display: string }[] = [];
     for (const times of Object.values(data.slots || {}) as any[][]) {
@@ -68,6 +72,7 @@ async function getAvailableSlots(urgency: string): Promise<string> {
 
     return JSON.stringify({ available: true, slots: slots.slice(0, 3) });
   } catch (e: any) {
+    console.error("[Cal.com] getAvailableSlots error:", e.message);
     return JSON.stringify({ error: e.message });
   }
 }
