@@ -52,7 +52,7 @@ async function getAvailableSlots(urgency: string): Promise<string> {
       timeZone: "America/Denver",
     });
 
-    const res = await fetch(`${CAL_BASE}/slots/available?${params}`, {
+    const res = await fetch(`${CAL_BASE}/slots?${params}`, {
       headers: calHeaders("2024-09-04"),
     });
     const data = await res.json();
