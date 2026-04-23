@@ -14,8 +14,9 @@ async function getEventTypeId(): Promise<number> {
   const url = `https://api.cal.com/v1/event-types?apiKey=${process.env.CAL_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
+  console.log("[Cal.com] event-types raw:", JSON.stringify(data).slice(0, 800));
   const types: any[] = data.event_types ?? [];
-  console.log("[Cal.com] event-types slugs:", types.map((e) => e.slug).join(", "));
+  console.log("[Cal.com] event-types slugs:", types.map((e) => e.slug).join(", ") || "(none)");
 
   const slug = process.env.CAL_EVENT_SLUG || "30min";
   const match = types.find((et) => et.slug === slug) ?? types[0];
