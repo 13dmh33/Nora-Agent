@@ -58,13 +58,13 @@ async function getAvailableSlots(urgency: string): Promise<string> {
     const data = await res.json();
     console.log("[Cal.com v2] slots:", JSON.stringify(data).slice(0, 500));
 
-    const slotsObj = data.data?.slots ?? {};
+    const slotsObj = data.data ?? {};
     const slots: { time: string; display: string }[] = [];
     for (const times of Object.values(slotsObj) as any[][]) {
       for (const slot of times) {
-        const dt = new Date(slot.time);
+        const dt = new Date(slot.start);
         slots.push({
-          time: slot.time,
+          time: slot.start,
           display: dt.toLocaleString("en-US", {
             weekday: "long",
             month: "long",
