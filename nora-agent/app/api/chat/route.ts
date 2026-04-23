@@ -43,7 +43,7 @@ async function getAvailableSlots(urgency: string): Promise<string> {
     const end = new Date(now);
     urgency === "emergency"
       ? end.setHours(end.getHours() + 6)
-      : end.setDate(end.getDate() + 4);
+      : end.setDate(end.getDate() + 7);
 
     const params = new URLSearchParams({
       eventTypeId: String(eventTypeId),
@@ -232,7 +232,7 @@ Conversation flow:
 Rules:
 - Never show JSON, ISO timestamps, or raw data to the customer
 - Never mention Calendly or any external booking link
-- If no slots are available, apologize and ask them to call directly for urgent issues
+- If no slots are available in the routine window (7 days), apologize and ask them to call directly
 - Collect all 5 pieces of info before checking availability
 - Keep responses concise and warm`;
 
