@@ -2,38 +2,38 @@
 
 Astrova Advisors  •  Trade Scale Systems
 
-_Last Updated: April 15, 2026_
+_Last Updated: April 23, 2026_
 
 ---
 
 ## 1. Project Overview
 
-Nora is a custom AI chat agent built for plumbing and HVAC contractors under the Astrova Advisors brand. The agent runs 24/7 on contractor websites, captures leads, identifies emergencies, and books appointments automatically.
+Nora is a custom AI chat agent built for plumbing and HVAC contractors under the Astrova Advisors brand. The agent runs 24/7 on contractor websites and via SMS, captures leads, identifies emergencies, proposes available appointment times, and books directly — no external links needed.
 
 | Item | Detail |
 |---|---|
-| Product | Nora — AI chat agent for plumbing/HVAC contractors |
+| Product | Nora — AI chat + SMS agent for plumbing/HVAC contractors |
 | Brand | Astrova Advisors ("AI agents built for the trades") |
-| Owner | Dave — sole proprietor, side hustle |
+| Owner | Dave — sole proprietor |
 | Repo | github.com/13dmh33/Nora-Agent |
 | Live URL | nora-agent-3ie8lnb4j-13dmh33-4012s-projects.vercel.app |
-| Email | tradescalesolutions2026@gmail.com |
-| Calendly | calendly.com/tradescalesolutions2026 |
+| Notification email | 13dmh33@gmail.com |
+| Cal.com | cal.com/david-hettinger-g8qbdk/30min |
 
 ---
 
 ## 2. The Stack
 
-Every component is free until you have a paying customer.
-
 | Tool | What It Does | Cost |
 |---|---|---|
-| GitHub Codespaces | Browser-based dev environment. No local installs needed. | Free tier |
-| Next.js | App framework — frontend (UI) and backend (API routes). | Free / open source |
-| Anthropic SDK | Connects app to Claude AI (Nora's brain). | $5 free credit to start |
-| Resend | Email notifications to contractor when a lead is captured. | Free tier (100 emails/day) |
-| Vercel | Hosts the app live on the internet. | Free tier |
-| .env.local | Stores API keys securely. Never committed to GitHub. | N/A |
+| Next.js 16.2.3 | App framework — frontend (UI) and backend (API routes) | Free / open source |
+| Anthropic Claude API | Nora's brain — `claude-sonnet-4-20250514` with tool use | Pay per token |
+| Cal.com | Calendar availability + direct booking API (replaces Calendly) | Free tier |
+| Resend | Email notifications to contractor on booking/lead | Free tier (100/day) |
+| Twilio | SMS channel — inbound customer texts + outbound contractor alerts | ~$1/mo + per message |
+| Vercel | Hosts the app live on the internet | Free tier |
+| GitHub | Source control | Free |
+| Claude Code | Development environment (claude.ai/code) | Subscription |
 
 ---
 
@@ -41,11 +41,11 @@ Every component is free until you have a paying customer.
 
 | Phase | Dates | Goal | Status |
 |---|---|---|---|
-| P1 Core Agent | Apr 14-18 | Nora live, lead capture, deployed to Vercel | Complete |
-| P2 Chat Widget | Apr 21-25 | Embeddable bubble for contractor websites | Complete |
-| P3 Integrations | Apr 28-May 9 | Calendly, Google Calendar, lead notifications | In Progress |
-| P4 Packaging | May 12-16 | Client onboarding, pricing page, domain setup | Upcoming |
-| P5 Test + Launch | May 19-23 | Land Customer 1 | Upcoming |
+| P1 Core Agent | Apr 14–18 | Nora live, lead capture, deployed to Vercel | ✅ Complete |
+| P2 Chat Widget | Apr 21–25 | Embeddable bubble for contractor websites | ✅ Complete |
+| P3 Integrations | Apr 21–May 9 | SMS channel, Cal.com scheduling, notifications | 🔄 In Progress |
+| P4 Packaging | May 12–16 | Client onboarding docs, pricing page, domain | Upcoming |
+| P5 Test + Launch | May 19–23 | Land Customer 1 | Upcoming |
 
 ---
 
@@ -53,122 +53,146 @@ Every component is free until you have a paying customer.
 
 | File / Folder | Purpose |
 |---|---|
-| nora-agent/app/api/chat/route.ts | Nora's brain — backend, Anthropic API, lead save, email notification |
-| nora-agent/app/page.tsx | Floating widget UI — frontend chat interface |
-| nora-agent/public/widget.js | Embeddable script for contractor sites (2-line install) |
-| nora-agent/public/demo.html | Sales demo page (fake plumber site, Nora widget embedded) |
-| nora-agent/leads.json | Lead storage — flat file (not committed to GitHub) |
-| nora-agent/.env.local | API keys — ANTHROPIC_API_KEY and RESEND_API_KEY (never commit) |
+| `nora-agent/app/api/chat/route.ts` | Web chat backend — Claude tool use, Cal.com booking, Resend email |
+| `nora-agent/app/api/sms/route.ts` | Twilio SMS webhook — existing customer routing, AI for new customers |
+| `nora-agent/app/page.tsx` | Web chat UI — React client component, Tailwind |
+| `nora-agent/public/widget.js` | Embeddable chat bubble — vanilla JS, no dependencies |
+| `nora-agent/public/demo.html` | Sales demo — fake Mike's Plumbing site with Nora widget |
+| `nora-agent/customers.json` | Existing customer list — E.164 phone numbers for SMS routing |
+| `nora-agent/leads.json` | Captured leads — ephemeral on Vercel, resets on deploy |
+| `nora-agent/.env.local` | API keys — never committed |
+| `CLAUDE.md` | Guidance file for Claude Code sessions |
+| `PROJECT_MEMORY.md` | Living project reference — decisions, status, constraints |
 
 ---
 
-## 5. Key Terminal Commands
+## 5. Environment Variables
 
-Run these every session in order:
+All stored in `nora-agent/.env.local` and Vercel project settings. Never commit.
 
-| Step | Command | Purpose |
+| Variable | Where to Get It | Required |
 |---|---|---|
-| 1 | cd /workspaces/Nora-Agent/nora-agent | Navigate to app root |
-| 2 | npx next dev | Start dev server |
-| 3 | cat leads.json | View captured leads |
-| 4 | cat .env.local | Verify API keys |
-| 5 | pkill -f 'next dev' | Kill stuck dev server |
-| 6 | cd /workspaces/Nora-Agent && git add . && git commit -m 'msg' && git push | Save to GitHub |
+| `ANTHROPIC_API_KEY` | console.anthropic.com/settings/keys | Yes |
+| `RESEND_API_KEY` | resend.com → API Keys | Yes |
+| `CAL_API_KEY` | cal.com/settings/developer/api-keys | Yes |
+| `CONTRACTOR_EMAIL` | Set to contractor's email | Yes |
+| `TWILIO_ACCOUNT_SID` | twilio.com console | SMS only |
+| `TWILIO_AUTH_TOKEN` | twilio.com console | SMS only |
+| `TWILIO_FROM_PHONE` | Twilio number in E.164 format | SMS only |
+| `TWILIO_CONTRACTOR_PHONE` | Contractor cell in E.164 format | SMS only |
 
 ---
 
-## 6. Environment Variables
+## 6. Key Terminal Commands
 
-Two keys required in `nora-agent/.env.local`:
+All commands from `nora-agent/`:
 
-| Variable | Where to Get It | Notes |
-|---|---|---|
-| ANTHROPIC_API_KEY | console.anthropic.com/settings/keys | Rotate immediately if accidentally committed |
-| RESEND_API_KEY | resend.com → API Keys | Also add to Vercel Environment Variables for production |
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start dev server (localhost:3000) |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+
+Test manually at `localhost:3000` (chat UI) or `localhost:3000/demo.html` (widget demo). No test suite configured.
 
 ---
 
-## 7. What's Built — P1 + P2 + P3 Progress
+## 7. What's Built
 
-### route.ts — Nora's Brain
-- Receives full conversation history from frontend
-- Sends to Claude API with plumbing-specific system prompt
-- Detects `<<LEAD>>` signal in response
-- Parses and saves lead to leads.json
-- Sends email notification via Resend to contractor inbox
-- Strips signal before returning response to customer
+### route.ts — Web Chat Backend (Claude Tool Use)
 
-### page.tsx — Floating Widget UI
-- Floating blue bubble (bottom-right, #2E5B8A)
-- Click to open/close chat window
-- Full conversation history sent to API each message
-- Uses inline styles — no Tailwind dependency for portability
+Rebuilt in April 2026 from a regex-based pattern to Claude's native tool use API.
+
+**Tools Nora can call:**
+- `get_available_slots(urgency)` — fetches real open times from Cal.com. Emergency = next 6 hours. Routine = next 4 days.
+- `create_booking(start_time, name, phone, email, address, issue)` — books directly via Cal.com API. No link sent to customer.
+
+**Flow:**
+1. Nora collects: issue type, urgency, name, phone, email, address
+2. Calls `get_available_slots` → presents 2–3 real times to customer
+3. Customer picks → Nora calls `get_available_slots` again for fresh ISO timestamp → calls `create_booking`
+4. Cal.com confirms → Resend emails contractor → Nora confirms to customer
+
+Cal.com event type looked up at runtime by slug (`30min`), cached in memory.
+
+### sms/route.ts — SMS Channel (Twilio)
+
+Handles inbound customer texts via Twilio webhook.
+
+- **Existing customers** (phone in `customers.json`): Nora replies with handoff message, contractor notified via email + SMS
+- **New customers**: Same Nora AI flow, `<<LEAD>>` capture pattern (SMS route not yet upgraded to tool use)
+- Conversation history stored in-memory per phone number
+- Returns TwiML XML to Twilio
+
+Twilio webhook URL: `https://<vercel-url>/api/sms`
 
 ### widget.js — Embeddable Script
-- Vanilla JS, no dependencies, IIFE pattern
-- Contractor pastes 2 lines into any website HTML
-- Creates bubble + chat window via DOM manipulation
-- Calls Nora's API at `NORA_URL/api/chat`
+
+- Vanilla JS IIFE — contractor pastes 2 lines into any website
+- `window.NORA_URL` sets the API endpoint (defaults to relative, set to Vercel URL for external sites)
+- Creates floating bubble + chat window via DOM manipulation
 
 ### demo.html — Sales Demo
-- Fake plumber website (Mike's Plumbing, Denver)
-- Nora widget embedded — shows prospects exactly what customers see
-- Self-contained — uses relative `/api/chat` URL, works on any deployment
 
-### Email Notifications (P3 — In Progress)
-- Resend installed and wired into route.ts
-- RESEND_API_KEY added to .env.local and Vercel environment variables
-- Email fires on lead capture — sends name, phone, email, address, issue, timestamp
-- Lead saves to leads.json confirmed working
-- Email delivery to inbox: debugging in progress (Resend domain verification needed)
+- Fake plumber website (Mike's Plumbing, Denver)
+- Nora widget embedded — shows prospects what their customers would experience
+- Uses relative `/api/chat` — works on any deployment automatically
+
+### Email Notifications
+
+- Fires on every booking and lead capture
+- Sends: name, phone, email, address, issue, appointment time, Cal.com booking ID
+- From: `onboarding@resend.dev` (needs domain verification for production reliability)
 
 ---
 
-## 8. Common Errors & Fixes
+## 8. Architecture Decision Log
+
+| Date | Decision | Reason |
+|---|---|---|
+| Apr 21 | Switched Calendly → Cal.com | Calendly API cannot book on behalf of customer. Cal.com has direct `POST /bookings` endpoint. |
+| Apr 21 | Refactored to Claude tool use | Regex `<<LEAD>>` pattern is fragile. Tool use is purpose-built for structured AI actions. |
+| Apr 21 | Added SMS channel via Twilio | Most small contractors use cell phones, not websites. SMS reach is broader. |
+| Apr 21 | Separate `customers.json` | Existing customers need different routing (human handoff) vs. new leads (AI flow). |
+
+---
+
+## 9. Per-Client Deployment Checklist
+
+When onboarding a new client:
+- [ ] Fork/copy this repo
+- [ ] Update system prompt in `chat/route.ts` and `sms/route.ts` (contractor name, services, tone)
+- [ ] Set `CONTRACTOR_EMAIL` env var
+- [ ] Set `CAL_API_KEY` and verify event type slug matches (`30min` or custom)
+- [ ] Set all `TWILIO_*` env vars
+- [ ] Deploy new Vercel project
+- [ ] Point client's Twilio number webhook → `https://<vercel-url>/api/sms`
+- [ ] Add existing customers to `customers.json` (E.164 format)
+
+---
+
+## 10. Known Constraints & Outstanding Work
+
+| Item | Status | Notes |
+|---|---|---|
+| Resend domain verification | Pending | Using `onboarding@resend.dev` — delivery unreliable without verified domain |
+| Persistent lead storage | Pending | `leads.json` resets on every Vercel deploy — Supabase or Google Sheets needed |
+| Twilio end-to-end SMS test | Pending | Code built, env vars needed in Vercel |
+| SMS route tool use upgrade | Pending | SMS still uses `<<LEAD>>` regex — upgrade to tool use + Cal.com booking in next session |
+| Twilio signature validation | Pending | No webhook auth yet — security gap before production |
+| SMS conversation memory | In-memory only | Resets on server restart — acceptable for MVP |
+
+---
+
+## 11. Common Errors & Fixes
 
 | Error | Cause | Fix |
 |---|---|---|
-| npm error ENOENT package.json | Wrong folder | cd /workspaces/Nora-Agent/nora-agent |
-| Port 3000 in use | Old server running | pkill -f 'next dev' then npx next dev |
-| bash: import: command not found | Code pasted into terminal | Open file in editor, paste there |
-| 401 Unauthorized on widget | Codespaces port not public | Ports tab → right-click port 3000 → Make Public |
-| ETIMEDOUT on API call | Codespaces network restriction | Push to GitHub, test on Vercel instead |
-| GitHub push blocked (secret scanning) | API key in commit | git reset HEAD~1, add to .gitignore, recommit |
-| Cannot find module @types/node | Missing type definitions | npm i --save-dev @types/node |
-
----
-
-## 9. P3 Remaining Roadmap
-
-| Task | Priority | Notes |
-|---|---|---|
-| Fix email delivery (Resend domain verification) | High | Check Resend dashboard → Emails for error. May need domain or verified address. |
-| Persistent lead storage | High | Replace leads.json with Supabase or Google Sheets — resets on Vercel deploy |
-| Calendly per-contractor dynamic link | Medium | Each client gets their own Calendly URL in system prompt |
-| SMS notifications via Twilio | Medium | Contractor gets text when lead captured |
-| Google Calendar sync | Medium | Deeper than Calendly link — actual calendar write |
-
----
-
-## 10. Critical Patterns
-
-### Never paste code into the terminal
-Always open the file in the editor, paste there, save. If code accidentally goes to terminal, ignore the errors — no damage done.
-
-### File editing workflow
-Open file from sidebar → Ctrl+A to select all → paste code → Ctrl+S to save.
-
-### Saving to GitHub
-Always from `/workspaces/Nora-Agent` (one level up from nora-agent):
-```bash
-cd /workspaces/Nora-Agent && git add . && git commit -m 'description' && git push
-```
-
-### API key safety
-- Stored in `nora-agent/.env.local`
-- Listed in `.gitignore` — never commits
-- If accidentally committed: rotate immediately at console.anthropic.com/settings/keys
-- On Vercel: set as Environment Variable in project settings
+| `npm error ENOENT package.json` | Wrong folder | `cd nora-agent/` |
+| Port 3000 in use | Old server running | `pkill -f 'next dev'` then restart |
+| Cal.com event type not found | Slug mismatch | Verify slug matches exactly in `getEventTypeId()` — currently `30min` |
+| Nora still sends Calendly link | Old code on main | Merge feature branch → main, redeploy Vercel |
+| GitHub push blocked (secret scanning) | API key in commit | `git reset HEAD~1`, add to `.gitignore`, recommit |
 
 ---
 

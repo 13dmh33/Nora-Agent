@@ -14,7 +14,7 @@
 | Repo | github.com/13dmh33/Nora-Agent |
 | Live URL | nora-agent-3ie8lnb4j-13dmh33-4012s-projects.vercel.app |
 | Notification email | 13dmh33@gmail.com |
-| Calendly | https://calendly.com/13dmh33/discovery-call |
+| Cal.com | cal.com/david-hettinger-g8qbdk/30min |
 
 ---
 
@@ -32,17 +32,22 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 |---|---|---|---|
 | P1 Core Agent | Apr 14–18 | Nora live, lead capture, Vercel deploy | ✅ Complete |
 | P2 Chat Widget | Apr 21–25 | Embeddable bubble for contractor websites | ✅ Complete |
-| P3 Integrations | Apr 28–May 9 | SMS channel, Twilio, lead notifications | 🔄 In Progress |
+| P3 Integrations | Apr 21–May 9 | SMS channel, Cal.com scheduling, notifications | 🔄 In Progress |
 | P4 Packaging | May 12–16 | Client onboarding docs, pricing page, domain | Upcoming |
 | P5 Test + Launch | May 19–23 | Land Customer 1 | Upcoming |
 
-**P3 progress as of Apr 21, 2026:**
-- ✅ `/api/sms` endpoint built — Twilio webhook, existing customer routing, AI for new customers
-- ✅ `customers.json` created — E.164 phone list for existing customer lookup
-- ✅ Contractor notification wired — email (always) + SMS (when TWILIO_* vars set)
-- ⏳ Twilio account setup + end-to-end SMS test — pending
+**P3 progress as of Apr 23, 2026:**
+- ✅ Claude tool use refactor — `chat/route.ts` fully rebuilt, no more regex pattern
+- ✅ Cal.com integration — `get_available_slots` + `create_booking` tools live
+- ✅ SMS channel — `/api/sms` endpoint, existing customer routing, Twilio webhook
+- ✅ `customers.json` — existing customer list for SMS routing
+- ✅ Contractor notifications — email always, SMS when TWILIO_* vars set
+- ✅ `CAL_API_KEY` added to Vercel
+- ⏳ End-to-end Cal.com booking test — in progress
+- ⏳ Twilio end-to-end SMS test — pending
 - ⏳ Resend domain verification — pending
 - ⏳ Persistent lead/customer storage — pending
+- ⏳ SMS route upgrade to tool use + Cal.com — next session
 
 ---
 
@@ -51,11 +56,13 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 | Tool | Role | Cost |
 |---|---|---|
 | Next.js 16.2.3 | App framework (App Router) | Free |
-| Anthropic Claude API | Nora's brain (`claude-sonnet-4-20250514`) | Pay per token |
+| Anthropic Claude API | Nora's brain — `claude-sonnet-4-20250514` with tool use | Pay per token |
+| Cal.com | Calendar availability + direct booking (replaced Calendly) | Free tier |
 | Resend | Email notifications to contractor | Free tier (100/day) |
 | Twilio | SMS channel — inbound/outbound | ~$1/mo + per message |
 | Vercel | Hosting | Free tier |
 | GitHub | Source control | Free |
+| Claude Code | Dev environment (claude.ai/code) | Subscription |
 
 ---
 
@@ -66,6 +73,7 @@ Stored in `nora-agent/.env.local` — never commit. Must also be set in Vercel p
 ```
 ANTHROPIC_API_KEY=          # console.anthropic.com/settings/keys
 RESEND_API_KEY=             # resend.com → API Keys
+CAL_API_KEY=                # cal.com/settings/developer/api-keys ✅ added to Vercel
 CONTRACTOR_EMAIL=           # where leads/alerts go (defaults to 13dmh33@gmail.com)
 
 # Twilio — all 4 required to enable SMS notifications to contractor
@@ -81,33 +89,27 @@ TWILIO_CONTRACTOR_PHONE=    # contractor's cell in E.164 (+1xxxxxxxxxx)
 
 | File | What It Does |
 |---|---|
-| `nora-agent/app/api/chat/route.ts` | Web chat backend — Claude API, lead capture, Resend email |
-| `nora-agent/app/api/sms/route.ts` | Twilio SMS webhook — existing customer routing, AI for new customers |
-| `nora-agent/app/page.tsx` | Web chat UI (React client component, Tailwind) |
-| `nora-agent/public/widget.js` | Embeddable chat bubble (vanilla JS, no deps) |
-| `nora-agent/public/demo.html` | Standalone demo — fake Mike's Plumbing site with widget |
-| `nora-agent/customers.json` | Existing customer list — phone numbers in E.164 format |
-| `nora-agent/leads.json` | Captured leads — ephemeral on Vercel, resets on deploy |
+| `nora-agent/app/api/chat/route.ts` | Web chat — Claude tool use, Cal.com booking, Resend email |
+| `nora-agent/app/api/sms/route.ts` | SMS webhook — existing customer routing, AI for new customers |
+| `nora-agent/app/page.tsx` | Web chat UI (React, Tailwind) |
+| `nora-agent/public/widget.js` | Embeddable chat bubble (vanilla JS) |
+| `nora-agent/public/demo.html` | Standalone Mike's Plumbing demo site |
+| `nora-agent/customers.json` | Existing customer list — E.164 phone numbers |
+| `nora-agent/leads.json` | Captured leads — ephemeral on Vercel |
+| `CLAUDE.md` | Claude Code session guidance |
+| `NORA_AGENT_REFERENCE.md` | Full project reference (mirrors Google Doc) |
 
 ---
 
-## Lead Capture Pattern
+## Architecture Decision Log
 
-Both `/api/chat` and `/api/sms` use the same pattern:
-
-Claude is instructed to emit a `<<LEAD>>...<<END>>` block when all 5 fields are collected: name, phone, email, address, issue. The backend parses this with regex, saves to `leads.json`, notifies the contractor, then strips the block before returning the clean message to the user.
-
----
-
-## SMS Channel — How It Works
-
-- Contractor gets a Twilio phone number
-- Customer texts it → Twilio POSTs to `/api/sms`
-- **Existing customer** (phone in `customers.json`): Nora replies with handoff message, contractor is notified via email + SMS
-- **New customer**: Nora handles via Claude AI, same lead capture flow
-- Conversation history stored in-memory per phone number (resets on server restart — acceptable for MVP)
-- To add existing customers: edit `customers.json`, add `{ "name": "", "phone": "+1...", "email": "", "addedAt": "" }`
-- Twilio webhook URL: `https://<vercel-url>/api/sms`
+| Date | Decision | Reason |
+|---|---|---|
+| Apr 21 | Switched Calendly → Cal.com | Calendly API cannot book on behalf of customer. Cal.com has `POST /bookings`. |
+| Apr 21 | Refactored to Claude tool use | Regex `<<LEAD>>` pattern is fragile at scale. Tool use is the right architecture. |
+| Apr 21 | Added SMS channel | Most small contractors use cell phones more than websites. |
+| Apr 21 | Separate `customers.json` | Existing customers need human handoff, not AI. Separate list keeps routing clean. |
+| Apr 21 | Development moved to Claude Code | Using claude.ai/code as primary dev environment going forward. |
 
 ---
 
@@ -119,28 +121,27 @@ Claude is instructed to emit a `<<LEAD>>...<<END>>` block when all 5 fields are 
 | Growth | $497 | $147/mo |
 | Pro | $797 | $197/mo |
 
-Twilio cost (~$1/mo + fractions per message) is built into pricing.
+Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into pricing.
 
 ---
 
-## Known Constraints
+## Known Constraints & Risks
 
-- `leads.json` and `customers.json` reset on every Vercel deployment — ephemeral. Persistent storage (Supabase or Google Sheets) is a P3/P4 item.
-- Resend free tier requires domain verification for reliable delivery. Currently using `onboarding@resend.dev` as sender.
-- SMS conversation memory is in-memory only — lost on server restart. Fine for MVP since most conversations complete in one session.
-- ~~The Claude GitHub App currently only has read access to this repo~~ — **resolved Apr 21, 2026. Write access granted, push working.**
-
----
-
-## P3 Remaining Work
-
-| Task | Priority | Status |
+| Item | Risk | Plan |
 |---|---|---|
-| Fix Resend email delivery (domain verification) | High | Pending |
-| Persistent lead + customer storage (Supabase / Google Sheets) | High | Pending |
-| Twilio account setup + end-to-end SMS test | High | Pending |
-| Calendly per-contractor dynamic link | Medium | Pending |
-| SMS notifications via Twilio to contractor | Medium | Code wired, needs TWILIO_* env vars set |
+| `leads.json` ephemeral | Lost on every Vercel deploy | Supabase or Google Sheets — P4 |
+| `customers.json` ephemeral | Same as above | Same fix |
+| Resend domain unverified | Email delivery unreliable | Verify domain before Customer 1 |
+| SMS conversation memory in-memory | Lost on restart | Acceptable for MVP |
+| No Twilio signature validation | Webhook security gap | Fix before production |
+| SMS route still uses regex | Less reliable than tool use | Upgrade next session |
+
+---
+
+## Dev Branch
+
+Active development branch: `claude/migrate-chatbot-cloud-bkdS3`
+Merged to main: April 23, 2026
 
 ---
 
@@ -148,22 +149,13 @@ Twilio cost (~$1/mo + fractions per message) is built into pricing.
 
 When onboarding a new client:
 - [ ] Fork/copy this repo
-- [ ] Update system prompt in `app/api/chat/route.ts` and `app/api/sms/route.ts` (contractor name, services, Calendly link)
-- [ ] Set `CONTRACTOR_EMAIL` env var
-- [ ] Set all `TWILIO_*` env vars
+- [ ] Update system prompt in `chat/route.ts` and `sms/route.ts`
+- [ ] Set `CONTRACTOR_EMAIL`, `CAL_API_KEY`, all `TWILIO_*` env vars in Vercel
+- [ ] Verify Cal.com event type slug matches code (`30min`)
 - [ ] Deploy new Vercel project
-- [ ] Point client's Twilio number webhook → `https://<new-vercel-url>/api/sms`
-- [ ] Share `customers.json` edit access so contractor can add existing customers
+- [ ] Point Twilio number webhook → `https://<vercel-url>/api/sms`
+- [ ] Add existing customers to `customers.json` (E.164 format)
 
 ---
 
----
-
-## Dev Branch
-
-Active development branch: `claude/migrate-chatbot-cloud-bkdS3`
-Pushed to GitHub: Apr 21, 2026
-
----
-
-*Last updated: April 21, 2026*
+*Last updated: April 23, 2026*
