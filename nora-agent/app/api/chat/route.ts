@@ -14,12 +14,14 @@ async function getEventTypeId(): Promise<number> {
   const url = `https://api.cal.com/v1/event-types?apiKey=${process.env.CAL_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
-  console.log("[Cal.com] event-types response:", JSON.stringify(data).slice(0, 500));
-  const match = data.event_types?.find((et: any) => et.slug === "30min");
-  if (!match) {
-    const slugs = data.event_types?.map((et: any) => et.slug) ?? [];
-    throw new Error(`Cal.com event type '30min' not found. Available slugs: ${slugs.join(", ")}`);
-  }
+  const types: any[] = data.event_types ?? [];
+  console.log("[Cal.com] event-types slugs:", types.map((e) => e.slug).join(", "));
+
+  const slug = process.env.CAL_EVENT_SLUG || "30min";
+  const match = types.find((et) => et.slug === slug) ?? types[0];
+  if (!match) throw new Error("No Cal.com event types found. Check CAL_API_KEY.");
+
+  console.log("[Cal.com] using event type:", match.slug, match.id);
   cachedEventTypeId = match.id;
   return match.id;
 }
