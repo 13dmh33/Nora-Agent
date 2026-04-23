@@ -110,7 +110,7 @@ issue: [issue type]
 <<END>>
 
 Be warm, concise, and professional. SMS — keep it short.`,
-    messages: history,
+    messages: history as { role: "user" | "assistant"; content: string }[],
   });
 
   const content = response.content[0];
