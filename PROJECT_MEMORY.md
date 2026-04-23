@@ -36,17 +36,18 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 | P4 Packaging | May 12–16 | Client onboarding docs, pricing page, domain | Upcoming |
 | P5 Test + Launch | May 19–23 | Land Customer 1 | Upcoming |
 
-**P3 progress as of Apr 23, 2026:**
+**P3 progress as of Apr 23, 2026 (session 2):**
 - ✅ Claude tool use refactor — `chat/route.ts` fully rebuilt, no more regex pattern
 - ✅ Cal.com integration — `get_available_slots` + `create_booking` tools live
+- ✅ Cal.com v1 → v2 migration — Cal.com decommissioned v1; fully migrated to v2 API (Bearer auth, new endpoints, new response shapes)
+- ✅ End-to-end Cal.com booking test — **confirmed working** (real slots presented, appointment booked, contractor email sent)
 - ✅ SMS channel — `/api/sms` endpoint, existing customer routing, Twilio webhook
 - ✅ `customers.json` — existing customer list for SMS routing
 - ✅ Contractor notifications — email always, SMS when TWILIO_* vars set
-- ✅ `CAL_API_KEY` added to Vercel
-- ⏳ End-to-end Cal.com booking test — in progress
+- ✅ `RESEND_API_KEY` fixed in Vercel — now covers Production environment
 - ⏳ Twilio end-to-end SMS test — pending
-- ⏳ Resend domain verification — pending
-- ⏳ Persistent lead/customer storage — pending
+- ⏳ Resend domain verification — pending (emails sending but from onboarding@resend.dev)
+- ⏳ Persistent lead/customer storage — pending (leads.json resets on deploy)
 - ⏳ SMS route upgrade to tool use + Cal.com — next session
 
 ---
@@ -71,9 +72,9 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 Stored in `nora-agent/.env.local` — never commit. Must also be set in Vercel project settings.
 
 ```
-ANTHROPIC_API_KEY=          # console.anthropic.com/settings/keys
-RESEND_API_KEY=             # resend.com → API Keys
-CAL_API_KEY=                # cal.com/settings/developer/api-keys ✅ added to Vercel
+ANTHROPIC_API_KEY=          # console.anthropic.com/settings/keys ✅ Vercel
+RESEND_API_KEY=             # resend.com → API Keys ✅ Vercel (Production + Preview)
+Cal_API=                    # cal.com/settings/developer/api-keys ✅ Vercel (note: named Cal_API not CAL_API_KEY)
 CONTRACTOR_EMAIL=           # where leads/alerts go (defaults to 13dmh33@gmail.com)
 
 # Twilio — all 4 required to enable SMS notifications to contractor
@@ -110,6 +111,8 @@ TWILIO_CONTRACTOR_PHONE=    # contractor's cell in E.164 (+1xxxxxxxxxx)
 | Apr 21 | Added SMS channel | Most small contractors use cell phones more than websites. |
 | Apr 21 | Separate `customers.json` | Existing customers need human handoff, not AI. Separate list keeps routing clean. |
 | Apr 21 | Development moved to Claude Code | Using claude.ai/code as primary dev environment going forward. |
+| Apr 23 | Migrated Cal.com v1 → v2 | Cal.com decommissioned v1 API entirely. v2 uses Bearer auth, `/v2/slots`, `/v2/bookings`, `start`/`end` params, `slot.start` field. |
+| Apr 23 | Vercel env var named `Cal_API` | Variable was created as `Cal_API` not `CAL_API_KEY`. Code reads both via `process.env.Cal_API \|\| process.env.CAL_API_KEY`. |
 
 ---
 
@@ -140,8 +143,8 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 
 ## Dev Branch
 
-Active development branch: `claude/migrate-chatbot-cloud-bkdS3`
-Merged to main: April 23, 2026
+Active development branch: `claude/resume-session-0t22o`
+Merged to main: April 23, 2026 (session 2)
 
 ---
 
@@ -150,7 +153,7 @@ Merged to main: April 23, 2026
 When onboarding a new client:
 - [ ] Fork/copy this repo
 - [ ] Update system prompt in `chat/route.ts` and `sms/route.ts`
-- [ ] Set `CONTRACTOR_EMAIL`, `CAL_API_KEY`, all `TWILIO_*` env vars in Vercel
+- [ ] Set `CONTRACTOR_EMAIL`, `Cal_API`, all `TWILIO_*` env vars in Vercel (note: Cal.com key var is `Cal_API`)
 - [ ] Verify Cal.com event type slug matches code (`30min`)
 - [ ] Deploy new Vercel project
 - [ ] Point Twilio number webhook → `https://<vercel-url>/api/sms`
@@ -158,4 +161,4 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 23, 2026*
+*Last updated: April 23, 2026 (session 2)*
