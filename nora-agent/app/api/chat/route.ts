@@ -47,8 +47,8 @@ async function getAvailableSlots(urgency: string): Promise<string> {
 
     const params = new URLSearchParams({
       eventTypeId: String(eventTypeId),
-      startTime: now.toISOString(),
-      endTime: end.toISOString(),
+      start: now.toISOString(),
+      end: end.toISOString(),
       timeZone: "America/Denver",
     });
 
