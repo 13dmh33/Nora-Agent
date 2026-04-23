@@ -5,7 +5,7 @@ import { join } from "path";
 import twilio from "twilio";
 
 const client = new Anthropic();
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 // In-memory conversation store keyed by phone number — resets on server restart
 const conversations = new Map<string, { role: string; content: string }[]>();
@@ -40,7 +40,7 @@ function saveLead(lead: Record<string, string>) {
 
 async function notifyContractor(subject: string, html: string, customerPhone: string) {
   // Email notification (always attempted)
-  await resend.emails.send({
+  await getResend().emails.send({
     from: "Nora <onboarding@resend.dev>",
     to: process.env.CONTRACTOR_EMAIL || "13dmh33@gmail.com",
     subject,

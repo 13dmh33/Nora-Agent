@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const anthropic = new Anthropic();
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 // Cached after first lookup — avoids repeated event-type API calls
 let cachedEventTypeId: number | null = null;
@@ -126,7 +126,7 @@ async function createBooking(input: {
       timestamp: new Date().toISOString(),
     });
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: "Nora <onboarding@resend.dev>",
       to: process.env.CONTRACTOR_EMAIL || "13dmh33@gmail.com",
       subject: `New Booking: ${input.name} — ${input.issue}`,
