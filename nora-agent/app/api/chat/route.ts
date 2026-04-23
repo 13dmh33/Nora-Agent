@@ -6,23 +6,31 @@ import { join } from "path";
 const anthropic = new Anthropic();
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
+const CAL_BASE = "https://api.cal.com/v2";
+
+function calHeaders(version: string) {
+  return {
+    Authorization: `Bearer ${process.env.CAL_API_KEY}`,
+    "cal-api-version": version,
+    "Content-Type": "application/json",
+  };
+}
+
 // Cached after first lookup — avoids repeated event-type API calls
 let cachedEventTypeId: number | null = null;
 
 async function getEventTypeId(): Promise<number> {
   if (cachedEventTypeId) return cachedEventTypeId;
-  const url = `https://api.cal.com/v1/event-types?apiKey=${process.env.CAL_API_KEY}`;
-  const res = await fetch(url);
+  const res = await fetch(`${CAL_BASE}/event-types`, {
+    headers: calHeaders("2024-06-14"),
+  });
   const data = await res.json();
-  console.log("[Cal.com] event-types raw:", JSON.stringify(data).slice(0, 800));
-  const types: any[] = data.event_types ?? [];
-  console.log("[Cal.com] event-types slugs:", types.map((e) => e.slug).join(", ") || "(none)");
-
+  console.log("[Cal.com v2] event-types:", JSON.stringify(data).slice(0, 600));
+  const types: any[] = data.data ?? [];
   const slug = process.env.CAL_EVENT_SLUG || "30min";
-  const match = types.find((et) => et.slug === slug) ?? types[0];
+  const match = types.find((et: any) => et.slug === slug) ?? types[0];
   if (!match) throw new Error("No Cal.com event types found. Check CAL_API_KEY.");
-
-  console.log("[Cal.com] using event type:", match.slug, match.id);
+  console.log("[Cal.com v2] using event type:", match.slug, match.id);
   cachedEventTypeId = match.id;
   return match.id;
 }
@@ -37,19 +45,21 @@ async function getAvailableSlots(urgency: string): Promise<string> {
       : end.setDate(end.getDate() + 4);
 
     const params = new URLSearchParams({
-      apiKey: process.env.CAL_API_KEY || "",
       eventTypeId: String(eventTypeId),
       startTime: now.toISOString(),
       endTime: end.toISOString(),
       timeZone: "America/Denver",
     });
 
-    const res = await fetch(`https://api.cal.com/v1/slots?${params}`);
+    const res = await fetch(`${CAL_BASE}/slots/available?${params}`, {
+      headers: calHeaders("2024-09-04"),
+    });
     const data = await res.json();
-    console.log("[Cal.com] slots response:", JSON.stringify(data).slice(0, 500));
+    console.log("[Cal.com v2] slots:", JSON.stringify(data).slice(0, 500));
 
+    const slotsObj = data.data?.slots ?? {};
     const slots: { time: string; display: string }[] = [];
-    for (const times of Object.values(data.slots || {}) as any[][]) {
+    for (const times of Object.values(slotsObj) as any[][]) {
       for (const slot of times) {
         const dt = new Date(slot.time);
         slots.push({
@@ -67,15 +77,12 @@ async function getAvailableSlots(urgency: string): Promise<string> {
     }
 
     if (!slots.length) {
-      return JSON.stringify({
-        available: false,
-        message: "No openings in this window.",
-      });
+      return JSON.stringify({ available: false, message: "No openings in this window." });
     }
 
     return JSON.stringify({ available: true, slots: slots.slice(0, 3) });
   } catch (e: any) {
-    console.error("[Cal.com] getAvailableSlots error:", e.message);
+    console.error("[Cal.com v2] getAvailableSlots error:", e.message);
     return JSON.stringify({ error: e.message });
   }
 }
@@ -90,35 +97,33 @@ async function createBooking(input: {
 }): Promise<string> {
   try {
     const eventTypeId = await getEventTypeId();
-    const endTime = new Date(
-      new Date(input.start_time).getTime() + 30 * 60 * 1000
-    ).toISOString();
 
-    const res = await fetch(
-      `https://api.cal.com/v1/bookings?apiKey=${process.env.CAL_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventTypeId,
-          start: input.start_time,
-          end: endTime,
-          responses: {
-            name: input.name,
-            email: input.email,
-            notes: `Phone: ${input.phone}\nAddress: ${input.address}\nIssue: ${input.issue}`,
-          },
+    const res = await fetch(`${CAL_BASE}/bookings`, {
+      method: "POST",
+      headers: calHeaders("2024-08-13"),
+      body: JSON.stringify({
+        eventTypeId,
+        start: input.start_time,
+        attendee: {
+          name: input.name,
+          email: input.email,
           timeZone: "America/Denver",
           language: "en",
-          metadata: { source: "nora-web-chat", phone: input.phone },
-        }),
-      }
-    );
+          phoneNumber: input.phone,
+        },
+        metadata: { source: "nora-web-chat" },
+        bookingFieldsResponses: {
+          notes: `Address: ${input.address}\nIssue: ${input.issue}`,
+        },
+      }),
+    });
 
     const booking = await res.json();
+    console.log("[Cal.com v2] booking response:", JSON.stringify(booking).slice(0, 500));
 
-    if (!booking.id) {
-      console.error("Cal.com booking error:", booking);
+    const bookingData = booking.data ?? booking;
+    if (!bookingData.id && !bookingData.uid) {
+      console.error("[Cal.com v2] booking error:", booking);
       return JSON.stringify({ success: false, error: booking.message || "Booking failed" });
     }
 
@@ -128,7 +133,7 @@ async function createBooking(input: {
       email: input.email,
       address: input.address,
       issue: input.issue,
-      booking_id: String(booking.id),
+      booking_id: String(bookingData.id ?? bookingData.uid),
       booking_time: input.start_time,
       source: "web",
       timestamp: new Date().toISOString(),
@@ -153,12 +158,13 @@ async function createBooking(input: {
           hour: "numeric",
           minute: "2-digit",
         })}</p>
-        <p><strong>Cal.com Booking ID:</strong> ${booking.id}</p>
+        <p><strong>Cal.com Booking ID:</strong> ${bookingData.id ?? bookingData.uid}</p>
       `,
     });
 
-    return JSON.stringify({ success: true, booking_id: booking.id });
+    return JSON.stringify({ success: true, booking_id: bookingData.id ?? bookingData.uid });
   } catch (e: any) {
+    console.error("[Cal.com v2] createBooking error:", e.message);
     return JSON.stringify({ success: false, error: e.message });
   }
 }
