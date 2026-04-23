@@ -9,8 +9,9 @@ const getResend = () => new Resend(process.env.RESEND_API_KEY);
 const CAL_BASE = "https://api.cal.com/v2";
 
 function calHeaders(version: string) {
+  const key = process.env.Cal_API || process.env.CAL_API_KEY;
   return {
-    Authorization: `Bearer ${process.env.CAL_API_KEY}`,
+    Authorization: `Bearer ${key}`,
     "cal-api-version": version,
     "Content-Type": "application/json",
   };
