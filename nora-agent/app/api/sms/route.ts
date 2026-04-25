@@ -206,8 +206,12 @@ async function notifyContractor(subject: string, html: string) {
     html,
   });
 
-  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_PHONE, TWILIO_CONTRACTOR_PHONE } =
-    process.env;
+  const {
+    Twilio_SID: TWILIO_ACCOUNT_SID,
+    Twilio_Account_Authorization: TWILIO_AUTH_TOKEN,
+    Twilio_Phone_NUmber: TWILIO_FROM_PHONE,
+    TWILIO_CONTRACTOR_PHONE,
+  } = process.env;
   if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_PHONE && TWILIO_CONTRACTOR_PHONE) {
     const twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
     await twilioClient.messages.create({
