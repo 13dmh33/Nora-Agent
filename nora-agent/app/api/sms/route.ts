@@ -303,6 +303,7 @@ export async function POST(request: Request) {
   history.push({ role: "user", content: body });
 
   let finalText = "";
+  let bookingCompleted = false;
 
   while (true) {
     const response = await anthropic.messages.create({
@@ -338,7 +339,10 @@ export async function POST(request: Request) {
       const wasBooking = response.content.some(
         (b) => b.type === "tool_use" && b.name === "create_booking"
       );
-      if (wasBooking) conversations.delete(from);
+      if (wasBooking) {
+        bookingCompleted = true;
+        conversations.delete(from);
+      }
 
       continue;
     }
@@ -352,9 +356,7 @@ export async function POST(request: Request) {
     break;
   }
 
-  if (!conversations.has(from)) {
-    // Conversation was cleared (booking complete) — don't re-save
-  } else {
+  if (!bookingCompleted) {
     history.push({ role: "assistant", content: finalText });
     conversations.set(from, history);
   }
