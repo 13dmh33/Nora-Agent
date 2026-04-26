@@ -31,7 +31,7 @@ send() {
 
   # Extract text from TwiML <Message>...</Message>
   local text
-  text=$(echo "$response" | grep -o '<Message>[^<]*</Message>' | sed 's/<[^>]*>//g')
+  text=$(echo "$response" | grep -o '<Message>[^<]*</Message>' | sed 's/<[^>]*>//g' || true)
   if [[ -z "$text" ]]; then
     echo "<<< NORA: [no message — raw response below]"
     echo "$response"
