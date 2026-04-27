@@ -3,32 +3,40 @@ prospect.py — Prospecting tool for Astrova Advisors sales pipeline.
 
 Usage:
     python prospect.py "Boulder, CO"
-    python prospect.py "Denver, CO" --output prospects.csv
 
-Reads GOOGLE_PLACES_API_KEY from environment.
-Outputs a ranked CSV ready to review before adding to the drip sheet.
+Reads GOOGLE_PLACES_API_KEY and GOOGLE_CREDENTIALS_JSON from environment.
+Results are appended to the 'Scraped Data' tab in the drip campaign sheet.
 
-CSV columns match the drip sheet schema:
-    Company name, URL, Phone Number, Email, Notes, Email Stage, Unsubscribe, Last Sent
+Columns written:
+    Priority | Action | Company name | URL | Phone Number | Email | All Emails | Notes | Has Form | Has Schedule
 """
 
 import os
 import re
 import sys
-import csv
 import time
+import json
 import argparse
-from datetime import date
 from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+import gspread
+from google.oauth2.service_account import Credentials
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
 PLACES_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY", "")
+SHEET_ID = "1SqsfXLNvJsJxWcgIvvJNgk1L0O5IL3D1S8nSc7Ss6JU"
+TAB_NAME = "Scraped Data"
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+SHEET_HEADERS = [
+    "Priority", "Action", "Company name", "URL", "Phone Number",
+    "Email", "All Emails", "Notes", "Has Form", "Has Schedule",
+]
 
 SCHEDULING_SIGNALS = [
     "calendly.com",
@@ -45,9 +53,7 @@ SCHEDULING_SIGNALS = [
     "request an appointment",
 ]
 
-EMAIL_RE = re.compile(
-    r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
-)
+EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
 HEADERS = {
     "User-Agent": (
@@ -58,11 +64,33 @@ HEADERS = {
 }
 
 # ---------------------------------------------------------------------------
+# Google Sheet
+# ---------------------------------------------------------------------------
+
+def get_sheet():
+    creds_data = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
+    creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open_by_key(SHEET_ID)
+
+    # Get or create the 'Scraped Data' tab
+    try:
+        sheet = spreadsheet.worksheet(TAB_NAME)
+    except gspread.exceptions.WorksheetNotFound:
+        sheet = spreadsheet.add_worksheet(title=TAB_NAME, rows=1000, cols=len(SHEET_HEADERS))
+
+    # Write headers if the sheet is empty
+    if sheet.row_count == 0 or not sheet.row_values(1):
+        sheet.append_row(SHEET_HEADERS)
+
+    return sheet
+
+
+# ---------------------------------------------------------------------------
 # Google Places
 # ---------------------------------------------------------------------------
 
 def search_places(query: str) -> list[dict]:
-    """Return up to 60 place results for a text search query."""
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     results = []
     params = {"query": query, "key": PLACES_API_KEY}
@@ -78,15 +106,14 @@ def search_places(query: str) -> list[dict]:
         for place in data.get("results", []):
             results.append({
                 "name": place.get("name", ""),
-                "phone": "",  # textsearch doesn't return phone; fetched via details
                 "place_id": place.get("place_id", ""),
+                "phone": "",
                 "website": "",
             })
 
         next_token = data.get("next_page_token")
         if not next_token or len(results) >= 60:
             break
-        # Google requires a short delay before using next_page_token
         time.sleep(2)
         params = {"pagetoken": next_token, "key": PLACES_API_KEY}
 
@@ -94,7 +121,6 @@ def search_places(query: str) -> list[dict]:
 
 
 def fetch_place_details(place_id: str) -> dict:
-    """Fetch phone and website for a single place."""
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         "place_id": place_id,
@@ -114,12 +140,6 @@ def fetch_place_details(place_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def crawl_website(url: str) -> dict:
-    """
-    Visit a website and return:
-        emails       — list of email strings found
-        has_form     — True if a <form> element was detected
-        has_schedule — True if scheduling widget signals were detected
-    """
     result = {"emails": [], "has_form": False, "has_schedule": False}
 
     try:
@@ -130,7 +150,6 @@ def crawl_website(url: str) -> dict:
         html = resp.text.lower()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Emails — check mailto links first, then raw text scan
         emails = set()
         for tag in soup.find_all("a", href=True):
             href = tag["href"]
@@ -140,20 +159,15 @@ def crawl_website(url: str) -> dict:
                     emails.add(addr.lower())
         for match in EMAIL_RE.findall(resp.text):
             emails.add(match.lower())
-        # Filter out common false positives
         emails = {
             e for e in emails
             if not any(x in e for x in ["example.com", "sentry.io", "w3.org", ".png", ".jpg"])
         }
         result["emails"] = sorted(emails)
 
-        # Contact form
         result["has_form"] = bool(soup.find("form"))
-
-        # Scheduling signals
         result["has_schedule"] = any(signal in html for signal in SCHEDULING_SIGNALS)
 
-        # Also check contact/about pages if no email found yet
         if not result["emails"]:
             result["emails"] = _check_subpages(url, soup)
 
@@ -164,18 +178,16 @@ def crawl_website(url: str) -> dict:
 
 
 def _check_subpages(base_url: str, soup: BeautifulSoup) -> list[str]:
-    """Look for emails on contact/about subpages if none found on homepage."""
     contact_links = []
     for tag in soup.find_all("a", href=True):
         href = tag["href"].lower()
         if any(kw in href for kw in ["contact", "about", "reach", "email"]):
             full = urljoin(base_url, tag["href"])
-            # Stay on same domain
             if urlparse(full).netloc == urlparse(base_url).netloc:
                 contact_links.append(full)
 
     emails = set()
-    for link in contact_links[:3]:  # check up to 3 subpages
+    for link in contact_links[:3]:
         try:
             resp = requests.get(link, headers=HEADERS, timeout=8, allow_redirects=True)
             if resp.status_code == 200:
@@ -195,26 +207,14 @@ def _check_subpages(base_url: str, soup: BeautifulSoup) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def score(has_website: bool, emails: list, has_form: bool, has_schedule: bool) -> tuple[str, str]:
-    """
-    Returns (priority, action) based on detected signals.
-
-    Priority:
-        High   — strong fit, missing automation
-        Medium — reachable, partial fit
-        Low    — already has scheduling or nothing to act on
-    """
     if has_schedule:
         return "Low", "skip — has scheduling"
-
     if not has_website:
         return "High", "call — no website"
-
     if emails:
         return "High", "email"
-
     if has_form:
         return "Medium", "contact form"
-
     return "Medium", "call — no email or form"
 
 
@@ -222,10 +222,13 @@ def score(has_website: bool, emails: list, has_form: bool, has_schedule: bool) -
 # Main
 # ---------------------------------------------------------------------------
 
-def run(location: str, output: str):
+def run(location: str):
     if not PLACES_API_KEY:
         print("ERROR: GOOGLE_PLACES_API_KEY environment variable not set.")
         sys.exit(1)
+
+    print(f"Connecting to Google Sheet...")
+    sheet = get_sheet()
 
     query = f"plumber {location}"
     print(f"Searching: {query}")
@@ -252,57 +255,40 @@ def run(location: str, output: str):
             has_schedule=crawl["has_schedule"],
         )
 
-        email_str = crawl["emails"][0] if crawl["emails"] else ""
-        notes = f"action:{action} | scheduling:{crawl['has_schedule']} | form:{crawl['has_form']}"
-
         rows.append({
+            "Priority": priority,
+            "Action": action,
             "Company name": place["name"],
             "URL": place["website"],
             "Phone Number": place["phone"],
-            "Email": email_str,
-            "Notes": notes,
-            "Email Stage": "",
-            "Unsubscribe": "",
-            "Last Sent": "",
-            # Extra columns for review — not in drip sheet, easy to delete
-            "_priority": priority,
-            "_action": action,
-            "_all_emails": ", ".join(crawl["emails"]),
+            "Email": crawl["emails"][0] if crawl["emails"] else "",
+            "All Emails": ", ".join(crawl["emails"]),
+            "Notes": f"Location: {location}",
+            "Has Form": "Yes" if crawl["has_form"] else "No",
+            "Has Schedule": "Yes" if crawl["has_schedule"] else "No",
         })
 
-        time.sleep(0.5)  # polite crawl rate
+        time.sleep(0.5)
 
-    # Sort: High first, then Medium, then Low
+    # Sort High → Medium → Low before writing
     priority_order = {"High": 0, "Medium": 1, "Low": 2}
-    rows.sort(key=lambda r: priority_order.get(r["_priority"], 9))
+    rows.sort(key=lambda r: priority_order.get(r["Priority"], 9))
 
-    fieldnames = [
-        "Company name", "URL", "Phone Number", "Email", "Notes",
-        "Email Stage", "Unsubscribe", "Last Sent",
-        "_priority", "_action", "_all_emails",
-    ]
+    # Append to sheet
+    print(f"\nWriting {len(rows)} rows to '{TAB_NAME}' tab...")
+    for row in rows:
+        sheet.append_row([row[h] for h in SHEET_HEADERS])
 
-    with open(output, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    high = sum(1 for r in rows if r["Priority"] == "High")
+    medium = sum(1 for r in rows if r["Priority"] == "Medium")
+    low = sum(1 for r in rows if r["Priority"] == "Low")
 
-    high = sum(1 for r in rows if r["_priority"] == "High")
-    medium = sum(1 for r in rows if r["_priority"] == "Medium")
-    low = sum(1 for r in rows if r["_priority"] == "Low")
-
-    print(f"\nDone — {len(rows)} prospects written to {output}")
+    print(f"Done — {len(rows)} prospects added to '{TAB_NAME}'")
     print(f"  High: {high} | Medium: {medium} | Low: {low}")
-    print(f"\nReview the CSV, delete the _priority/_action/_all_emails columns, then paste into the drip sheet.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prospect plumbers in a given location.")
     parser.add_argument("location", help='Location to search, e.g. "Boulder, CO"')
-    parser.add_argument(
-        "--output",
-        default=f"prospects_{date.today()}.csv",
-        help="Output CSV filename (default: prospects_YYYY-MM-DD.csv)",
-    )
     args = parser.parse_args()
-    run(args.location, args.output)
+    run(args.location)
