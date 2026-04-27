@@ -87,52 +87,46 @@ def get_sheet():
 
 
 # ---------------------------------------------------------------------------
-# Google Places
+# Google Places (New API)
 # ---------------------------------------------------------------------------
 
 def search_places(query: str) -> list[dict]:
-    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    """Search using Places API (New) — Text Search endpoint."""
+    url = "https://places.googleapis.com/v1/places:searchText"
+    headers = {
+        "X-Goog-Api-Key": PLACES_API_KEY,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.nationalPhoneNumber,places.websiteUri,nextPageToken",
+        "Content-Type": "application/json",
+    }
     results = []
-    params = {"query": query, "key": PLACES_API_KEY}
+    page_token = None
 
     while True:
-        resp = requests.get(url, params=params, timeout=10)
+        body = {"textQuery": query, "maxResultCount": 20}
+        if page_token:
+            body["pageToken"] = page_token
+
+        resp = requests.post(url, headers=headers, json=body, timeout=10)
         data = resp.json()
 
-        if data.get("status") not in ("OK", "ZERO_RESULTS"):
-            print(f"Places API error: {data.get('status')} — {data.get('error_message', '')}")
+        if "error" in data:
+            print(f"Places API error: {data['error'].get('message', data['error'])}")
             break
 
-        for place in data.get("results", []):
+        for place in data.get("places", []):
             results.append({
-                "name": place.get("name", ""),
-                "place_id": place.get("place_id", ""),
-                "phone": "",
-                "website": "",
+                "name": place.get("displayName", {}).get("text", ""),
+                "place_id": place.get("id", ""),
+                "phone": place.get("nationalPhoneNumber", ""),
+                "website": place.get("websiteUri", ""),
             })
 
-        next_token = data.get("next_page_token")
-        if not next_token or len(results) >= 60:
+        page_token = data.get("nextPageToken")
+        if not page_token or len(results) >= 60:
             break
         time.sleep(2)
-        params = {"pagetoken": next_token, "key": PLACES_API_KEY}
 
     return results
-
-
-def fetch_place_details(place_id: str) -> dict:
-    url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {
-        "place_id": place_id,
-        "fields": "formatted_phone_number,website",
-        "key": PLACES_API_KEY,
-    }
-    resp = requests.get(url, params=params, timeout=10)
-    result = resp.json().get("result", {})
-    return {
-        "phone": result.get("formatted_phone_number", ""),
-        "website": result.get("website", ""),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -237,10 +231,6 @@ def run(location: str):
 
     rows = []
     for i, place in enumerate(places, 1):
-        details = fetch_place_details(place["place_id"])
-        place["phone"] = details["phone"]
-        place["website"] = details["website"]
-
         crawl = {"emails": [], "has_form": False, "has_schedule": False}
         if place["website"]:
             print(f"  [{i}/{len(places)}] Crawling {place['website']}")
