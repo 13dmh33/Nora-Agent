@@ -12,7 +12,7 @@
 | Brand | Astrova Advisors — "AI agents built for the trades" |
 | Owner | Dave (13dmh33) |
 | Repo | github.com/13dmh33/Nora-Agent |
-| Live URL | nora-agent-3ie8lnb4j-13dmh33-4012s-projects.vercel.app |
+| Live URL | nora-agent-git-main-13dmh33-4012s-projects.vercel.app |
 | Notification email | 13dmh33@gmail.com |
 | Cal.com | cal.com/david-hettinger-g8qbdk/30min |
 
