@@ -45,10 +45,17 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 - ✅ `customers.json` — existing customer list for SMS routing
 - ✅ Contractor notifications — email always, SMS when TWILIO_* vars set
 - ✅ `RESEND_API_KEY` fixed in Vercel — now covers Production environment
-- ⏳ Twilio end-to-end SMS test — pending
+
+**P3 progress as of Apr 27, 2026 (session 3):**
+- ✅ SMS route upgraded to tool use + Cal.com — `sms/route.ts` now matches `chat/route.ts` architecture
+- ✅ SMS curl test confirmed — Claude → Cal.com slots → TwiML response working end-to-end on Vercel
+- ✅ Fixed `notifyContractor` crash when `RESEND_API_KEY` missing (graceful warn + skip)
+- ✅ Fixed `Twilio_Phone_NUmber` typo — code now reads both spellings as fallback
+- ✅ Vercel deployment protection disabled — endpoint publicly accessible for Twilio webhooks
+- ✅ Twilio webhook URL updated to new production URL (`nora-agent-git-main-...`)
+- ⏳ Twilio live SMS test — **blocked: trial account cannot send outbound US SMS** (needs paid upgrade + A2P 10DLC registration)
 - ⏳ Resend domain verification — pending (emails sending but from onboarding@resend.dev)
 - ⏳ Persistent lead/customer storage — pending (leads.json resets on deploy)
-- ⏳ SMS route upgrade to tool use + Cal.com — next session
 
 ---
 
@@ -137,14 +144,28 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 | Resend domain unverified | Email delivery unreliable | Verify domain before Customer 1 |
 | SMS conversation memory in-memory | Lost on restart | Acceptable for MVP |
 | No Twilio signature validation | Webhook security gap | Fix before production |
-| SMS route still uses regex | Less reliable than tool use | Upgrade next session |
+| Twilio trial account | Outbound US SMS blocked | Upgrade account + A2P 10DLC registration (1–2 week approval) |
+
+---
+
+## Action Items (prioritized)
+
+| Priority | Item | Notes |
+|---|---|---|
+| 🔴 High | Upgrade Twilio trial → paid | Unblocks live SMS test + A2P registration. ~$20 top-up at console.twilio.com |
+| 🔴 High | A2P 10DLC registration | Required for US outbound SMS. Start ASAP — takes 1–2 weeks to approve |
+| 🔴 High | Set `Twilio_Phone_Number=+17209027555` in Vercel | Env var missing — outbound contractor SMS won't fire until set |
+| 🟡 Medium | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
+| 🟡 Medium | Twilio webhook signature validation | Security gap — fix before production |
+| 🟢 Low | Persistent lead/customer storage | leads.json + customers.json reset on deploy — Supabase or Google Sheets, P4 |
+| 🟢 Low | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
 
 ---
 
 ## Dev Branch
 
-Active development branch: `claude/resume-session-0t22o`
-Merged to main: April 23, 2026 (session 2)
+Active development branch: `claude/plan-daily-tasks-amNtn`
+Merged to main: April 27, 2026 (session 3)
 
 ---
 
@@ -161,4 +182,4 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 23, 2026 (session 2)*
+*Last updated: April 27, 2026 (session 3)*
