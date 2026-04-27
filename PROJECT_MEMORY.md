@@ -33,7 +33,7 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 | P1 Core Agent | Apr 14–18 | Nora live, lead capture, Vercel deploy | ✅ Complete |
 | P2 Chat Widget | Apr 21–25 | Embeddable bubble for contractor websites | ✅ Complete |
 | P3 Integrations | Apr 21–May 9 | SMS channel, Cal.com scheduling, notifications | 🔄 In Progress |
-| P4 Packaging | May 12–16 | Client onboarding docs, pricing page, domain | Upcoming |
+| P4 Packaging | May 12–16 | Client onboarding docs, pricing page | ✅ Complete |
 | P5 Test + Launch | May 19–23 | Land Customer 1 | Upcoming |
 
 **P3 progress as of Apr 23, 2026 (session 2):**
@@ -45,10 +45,14 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 - ✅ `customers.json` — existing customer list for SMS routing
 - ✅ Contractor notifications — email always, SMS when TWILIO_* vars set
 - ✅ `RESEND_API_KEY` fixed in Vercel — now covers Production environment
+- ✅ SMS route upgraded to tool use + Cal.com v2
 - ⏳ Twilio end-to-end SMS test — pending
 - ⏳ Resend domain verification — pending (emails sending but from onboarding@resend.dev)
 - ⏳ Persistent lead/customer storage — pending (leads.json resets on deploy)
-- ⏳ SMS route upgrade to tool use + Cal.com — next session
+
+**P4 complete as of Apr 27, 2026:**
+- ✅ Client onboarding docs
+- ✅ Pricing page
 
 ---
 
@@ -161,4 +165,16 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 23, 2026 (session 2)*
+---
+
+## Parking Lot
+
+Ideas that are intentionally deferred — not forgotten, just not on the active roadmap.
+
+| Idea | Notes |
+|---|---|
+| Custom domain setup | Nice-to-have for polish, but not a blocker for Customer 1. Revisit when branding matters more. |
+
+---
+
+*Last updated: April 27, 2026 (session 3)*
