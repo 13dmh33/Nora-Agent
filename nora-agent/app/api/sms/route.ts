@@ -199,19 +199,22 @@ function saveLead(lead: Record<string, string>) {
 }
 
 async function notifyContractor(subject: string, html: string) {
-  await getResend().emails.send({
-    from: "Nora <onboarding@resend.dev>",
-    to: process.env.CONTRACTOR_EMAIL || "13dmh33@gmail.com",
-    subject,
-    html,
-  });
+  if (process.env.RESEND_API_KEY) {
+    await getResend().emails.send({
+      from: "Nora <onboarding@resend.dev>",
+      to: process.env.CONTRACTOR_EMAIL || "13dmh33@gmail.com",
+      subject,
+      html,
+    });
+  } else {
+    console.warn("[notifyContractor] RESEND_API_KEY not set — skipping email");
+  }
 
-  const {
-    Twilio_SID: TWILIO_ACCOUNT_SID,
-    Twilio_Account_Authorization: TWILIO_AUTH_TOKEN,
-    Twilio_Phone_NUmber: TWILIO_FROM_PHONE,
-    TWILIO_CONTRACTOR_PHONE,
-  } = process.env;
+  const TWILIO_ACCOUNT_SID = process.env.Twilio_SID;
+  const TWILIO_AUTH_TOKEN = process.env.Twilio_Account_Authorization;
+  const TWILIO_FROM_PHONE =
+    process.env.Twilio_Phone_Number || process.env.Twilio_Phone_NUmber;
+  const { TWILIO_CONTRACTOR_PHONE } = process.env;
   if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_PHONE && TWILIO_CONTRACTOR_PHONE) {
     const twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
     await twilioClient.messages.create({
