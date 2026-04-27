@@ -1,0 +1,29 @@
+name: Prospect
+
+on:
+  workflow_dispatch:
+    inputs:
+      location:
+        description: 'Location to search (e.g. "Boulder, CO")'
+        required: true
+        type: string
+
+jobs:
+  prospect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r drip-campaign/requirements.txt
+
+      - name: Run prospector
+        working-directory: drip-campaign
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          GOOGLE_PLACES_API_KEY:   ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: python prospect.py "${{ github.event.inputs.location }}"
