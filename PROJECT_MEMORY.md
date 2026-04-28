@@ -143,7 +143,7 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 | `customers.json` ephemeral | Same as above | Same fix |
 | Resend domain unverified | Email delivery unreliable | Verify domain before Customer 1 |
 | SMS conversation memory in-memory | Lost on restart | Acceptable for MVP |
-| No Twilio signature validation | Webhook security gap | Fix before production |
+| ~~No Twilio signature validation~~ | ~~Webhook security gap~~ | ✅ Fixed Apr 27 |
 | Twilio trial account | Outbound US SMS blocked | Upgrade account + A2P 10DLC registration (1–2 week approval) |
 
 ---
@@ -154,11 +154,11 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 |---|---|---|
 | 🔴 High | Upgrade Twilio trial → paid | Unblocks live SMS test + A2P registration. ~$20 top-up at console.twilio.com |
 | 🔴 High | A2P 10DLC registration | Required for US outbound SMS. Start ASAP — takes 1–2 weeks to approve |
-| 🔴 High | Set `Twilio_Phone_Number=+17209027555` in Vercel | Env var missing — outbound contractor SMS won't fire until set |
 | 🟡 Medium | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
-| 🟡 Medium | Twilio webhook signature validation | Security gap — fix before production |
 | 🟢 Low | Persistent lead/customer storage | leads.json + customers.json reset on deploy — Supabase or Google Sheets, P4 |
 | 🟢 Low | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
+| ✅ Done | Set `Twilio_Phone_NUmber=+17209027555` in Vercel | Completed Apr 27 |
+| ✅ Done | Twilio webhook signature validation | Completed Apr 27 — skips gracefully in local dev |
 
 ---
 
@@ -182,4 +182,4 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 27, 2026 (session 3)*
+*Last updated: April 28, 2026 (session 4)*
