@@ -287,6 +287,20 @@ export async function POST(request: Request) {
 
   if (!from || !body) return twiml("Sorry, something went wrong.");
 
+  // Validate Twilio signature — only when auth token is configured (skipped in local dev)
+  const authToken = process.env.Twilio_Account_Authorization;
+  if (authToken) {
+    const signature = request.headers.get("x-twilio-signature") || "";
+    const url = `https://${request.headers.get("host")}/api/sms`;
+    const params: Record<string, string> = {};
+    for (const [key, value] of formData.entries()) {
+      params[key] = value as string;
+    }
+    if (!twilio.validateRequest(authToken, signature, url, params)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+  }
+
   // Existing customers → human handoff
   if (isExistingCustomer(from)) {
     await notifyContractor(
