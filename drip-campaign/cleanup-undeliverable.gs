@@ -49,7 +49,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Nora Tools')
     .addItem('Clean Up Undeliverable Emails', 'cleanupUndeliverableEmails')
-    .toUi();
+    .addToUi();
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
