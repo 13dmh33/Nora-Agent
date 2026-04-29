@@ -216,6 +216,16 @@ def score(has_website: bool, emails: list, has_form: bool, has_schedule: bool) -
 # Main
 # ---------------------------------------------------------------------------
 
+def existing_company_names(sheet) -> set[str]:
+    """Return a lowercase set of company names already in the sheet (col C)."""
+    records = sheet.get_all_values()
+    names = set()
+    for row in records[1:]:  # skip header
+        if len(row) >= 3 and row[2].strip():
+            names.add(row[2].strip().lower())
+    return names
+
+
 def run(location: str):
     if not PLACES_API_KEY:
         print("ERROR: GOOGLE_PLACES_API_KEY environment variable not set.")
@@ -224,13 +234,29 @@ def run(location: str):
     print(f"Connecting to Google Sheet...")
     sheet = get_sheet()
 
+    # Load existing companies to skip duplicates
+    existing = existing_company_names(sheet)
+    print(f"Loaded {len(existing)} existing companies from '{TAB_NAME}'.")
+
     query = f"plumber {location}"
     print(f"Searching: {query}")
     places = search_places(query)
     print(f"Found {len(places)} businesses. Fetching details + crawling websites...")
 
     rows = []
+    seen_this_run = set()  # dedup within a single pull
+    skipped = 0
+
     for i, place in enumerate(places, 1):
+        name_key = place["name"].strip().lower()
+
+        if name_key in existing or name_key in seen_this_run:
+            print(f"  [{i}/{len(places)}] Skipping duplicate: {place['name']}")
+            skipped += 1
+            continue
+
+        seen_this_run.add(name_key)
+
         crawl = {"emails": [], "has_form": False, "has_schedule": False}
         if place["website"]:
             print(f"  [{i}/{len(places)}] Crawling {place['website']}")
@@ -265,7 +291,7 @@ def run(location: str):
     rows.sort(key=lambda r: priority_order.get(r["Priority"], 9))
 
     # Append to sheet
-    print(f"\nWriting {len(rows)} rows to '{TAB_NAME}' tab...")
+    print(f"\nWriting {len(rows)} rows to '{TAB_NAME}' tab (skipped {skipped} duplicates)...")
     for row in rows:
         sheet.append_row([row[h] for h in SHEET_HEADERS])
 
@@ -273,7 +299,7 @@ def run(location: str):
     medium = sum(1 for r in rows if r["Priority"] == "Medium")
     low = sum(1 for r in rows if r["Priority"] == "Low")
 
-    print(f"Done — {len(rows)} prospects added to '{TAB_NAME}'")
+    print(f"Done — {len(rows)} new prospects added to '{TAB_NAME}' | {skipped} duplicates skipped")
     print(f"  High: {high} | Medium: {medium} | Low: {low}")
 
 
