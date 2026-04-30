@@ -2,7 +2,7 @@
 
 Astrova Advisors  •  Trade Scale Systems
 
-_Last Updated: April 23, 2026_
+_Last Updated: April 30, 2026_
 
 ---
 
@@ -165,6 +165,10 @@ When onboarding a new client:
 - [ ] Set `CONTRACTOR_EMAIL` env var
 - [ ] Set `CAL_API_KEY` and verify event type slug matches (`30min` or custom)
 - [ ] Set all `TWILIO_*` env vars
+- [ ] Set `CLIENT_NAME` env var (written to Google Sheets `client` column)
+- [ ] Update `service-area.json` with client's covered zip codes
+- [ ] Share the master Google Sheet with the service account email (editor access)
+- [ ] Set `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_SHEET_ID` env vars
 - [ ] Deploy new Vercel project
 - [ ] Point client's Twilio number webhook → `https://<vercel-url>/api/sms`
 - [ ] Add existing customers to `customers.json` (E.164 format)
@@ -176,11 +180,44 @@ When onboarding a new client:
 | Item | Status | Notes |
 |---|---|---|
 | Resend domain verification | Pending | Using `onboarding@resend.dev` — delivery unreliable without verified domain |
-| Persistent lead storage | Pending | `leads.json` resets on every Vercel deploy — Supabase or Google Sheets needed |
+| Persistent lead storage | Scoped | Google Sheets integration planned — see Section 11 |
 | Twilio end-to-end SMS test | Pending | Code built, env vars needed in Vercel |
-| SMS route tool use upgrade | Pending | SMS still uses `<<LEAD>>` regex — upgrade to tool use + Cal.com booking in next session |
-| Twilio signature validation | Pending | No webhook auth yet — security gap before production |
+| SMS route tool use upgrade | ✅ Complete | SMS upgraded to tool use + Cal.com booking (Apr 27) |
+| Twilio signature validation | ✅ Complete | Completed Apr 27 — skips gracefully in local dev |
 | SMS conversation memory | In-memory only | Resets on server restart — acceptable for MVP |
+| Service area gating | Scoped | Zip code validation planned — see Section 11 |
+
+---
+
+## 11. Planned Features (Scoped, Not Yet Built)
+
+### Service Area Gating by Zip Code
+**Goal:** Block scheduling if customer is outside the contractor's service area. Scoped Apr 30.  
+**Estimated effort:** ~45 minutes
+
+- `service-area.json` (repo root) — array of covered zip codes, editable per client
+- New Claude tool `check_service_area(zip)` added to both `chat/route.ts` and `sms/route.ts`
+- **Zip source:** Hybrid — regex parse from address first; Nora asks explicitly only if no zip found
+- **Out-of-area behavior:** Apologize and end — lead is dropped entirely (no save, no email)
+- System prompt updated in both routes: check service area before offering slots
+
+### Google Sheets Lead Storage (CRM Bridge)
+**Goal:** Persistent lead storage replacing ephemeral `leads.json`. Architected for future CRM swap. Scoped Apr 30.  
+**Estimated effort:** ~1.5 hours (+ ~20 min Google Cloud setup)
+
+- `nora-agent/lib/crm.ts` — single `saveLead(lead)` function; Google Sheets primary, `leads.json` fallback
+- One sheet for all clients — `client` column added to distinguish deployments
+- Both `route.ts` files import from `crm.ts` instead of inline save
+- Future CRM (HubSpot, Salesforce) replaces only `crm.ts` — routes unchanged
+
+**New env vars:**
+```
+GOOGLE_SERVICE_ACCOUNT_JSON=   # full service account JSON
+GOOGLE_SHEET_ID=               # from the Google Sheet URL
+CLIENT_NAME=                   # written to "client" column per deployment
+```
+
+**Sheet columns:** `timestamp`, `client`, `source`, `name`, `phone`, `email`, `address`, `issue`, `booking_id`, `booking_time`
 
 ---
 

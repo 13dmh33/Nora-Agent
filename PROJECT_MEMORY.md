@@ -155,10 +155,81 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 | 🔴 High | Upgrade Twilio trial → paid | Unblocks live SMS test + A2P registration. ~$20 top-up at console.twilio.com |
 | 🔴 High | A2P 10DLC registration | Required for US outbound SMS. Start ASAP — takes 1–2 weeks to approve |
 | 🟡 Medium | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
-| 🟢 Low | Persistent lead/customer storage | leads.json + customers.json reset on deploy — Supabase or Google Sheets, P4 |
+| 🟡 Medium | Service area gating (zip code) | Scoped Apr 30 — see Planned Features below. Est. 45 min. |
+| 🟡 Medium | Google Sheets lead storage (CRM bridge) | Scoped Apr 30 — see Planned Features below. Est. 1.5 hrs. |
 | 🟢 Low | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
 | ✅ Done | Set `Twilio_Phone_NUmber=+17209027555` in Vercel | Completed Apr 27 |
 | ✅ Done | Twilio webhook signature validation | Completed Apr 27 — skips gracefully in local dev |
+
+---
+
+## Planned Features (Scoped, Not Yet Built)
+
+### Feature 1: Service Area Gating by Zip Code
+**Goal:** Block scheduling if customer is outside the contractor's service area.  
+**Estimated effort:** ~45 minutes  
+**Status:** Scoped Apr 30 — ready to implement
+
+**Decisions:**
+- Out-of-area leads are **dropped entirely** — no save, no email
+- Zip extracted via **hybrid approach**: regex parse from address first; Nora asks explicitly only if no zip found
+- Service area defined in `service-area.json` (repo root) — simple array of allowed zip codes, editable per client
+
+**What gets built:**
+- `service-area.json` — array of covered zip codes (e.g. `["80501", "80503", ...]`)
+- New Claude tool `check_service_area(zip)` → `{ covered: boolean }` in both `chat/route.ts` and `sms/route.ts`
+- System prompt update in both routes: call `check_service_area` before `get_available_slots`; if not covered, apologize and end — save nothing
+- No new env vars needed
+
+**Flow:**
+```
+Address collected
+  → regex extract zip from string
+  → if no zip found → Nora asks "What's your zip code?"
+  → check_service_area(zip)
+    → covered: true  → continue to get_available_slots
+    → covered: false → apologize, end conversation, save nothing
+```
+
+---
+
+### Feature 2: Google Sheets Lead Storage (CRM Bridge)
+**Goal:** Persist leads to Google Sheets instead of ephemeral `leads.json`. Architected so swapping to a real CRM later is a one-file change.  
+**Estimated effort:** ~1.5 hours (+ ~20 min Google Cloud setup on your end)  
+**Status:** Scoped Apr 30 — ready to implement
+
+**Decisions:**
+- One sheet for all clients — `client` column distinguishes deployments
+- `leads.json` kept as silent fallback if Google Sheets write fails
+- `lib/crm.ts` is the abstraction point — future CRM (HubSpot, Salesforce) replaces only this file
+
+**What gets built:**
+- `nora-agent/lib/crm.ts` — exports `saveLead(lead)`. Appends row to Google Sheet; falls back to `leads.json` on failure; never throws
+- Both `route.ts` files — replace inline `saveLead()` with `import { saveLead } from "@/lib/crm"`
+- `googleapis` npm package added as dependency
+
+**Sheet columns:** `timestamp`, `client`, `source` (web/sms), `name`, `phone`, `email`, `address`, `issue`, `booking_id`, `booking_time`
+
+**New env vars (per deployment):**
+```
+GOOGLE_SERVICE_ACCOUNT_JSON=   # full service account JSON (base64 or inline)
+GOOGLE_SHEET_ID=               # from the Google Sheet URL
+CLIENT_NAME=                   # written to "client" column (e.g. "Mikes Plumbing")
+```
+
+**Google Cloud setup (one-time, done by you):**
+1. Create a service account in Google Cloud Console
+2. Download the JSON key
+3. Share the Google Sheet with the service account email (editor access)
+4. Add the three env vars above to `.env.local` and Vercel
+
+**`crm.ts` behavior:**
+```
+saveLead(lead)
+  → append row to Google Sheet (with client column)
+  → if Sheet write fails → fall back to leads.json
+  → never throws — always non-fatal
+```
 
 ---
 
@@ -182,4 +253,4 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 28, 2026 (session 4)*
+*Last updated: April 30, 2026 (session 5)*
