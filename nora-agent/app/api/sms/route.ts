@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import twilio from "twilio";
+import { scheduleDrip } from "@/lib/drip";
 
 const anthropic = new Anthropic();
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
@@ -138,6 +139,8 @@ async function createBooking(input: {
       source: "sms",
       timestamp: new Date().toISOString(),
     });
+
+    await scheduleDrip({ name: input.name, email: input.email, issue: input.issue, source: "sms" });
 
     await getResend().emails.send({
       from: "Nora <onboarding@resend.dev>",
