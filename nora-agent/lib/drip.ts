@@ -1,7 +1,8 @@
 import { Resend } from "resend";
 
-export function isDripPaused(): boolean {
-  return process.env.DRIP_PAUSED === "true";
+// Drip campaign is off by default. Set DRIP_ENABLED=true to activate.
+export function isDripEnabled(): boolean {
+  return process.env.DRIP_ENABLED === "true";
 }
 
 export async function scheduleDrip(lead: {
@@ -10,8 +11,8 @@ export async function scheduleDrip(lead: {
   issue: string;
   source: string;
 }): Promise<void> {
-  if (isDripPaused()) {
-    console.log("[drip] campaign paused — skipping drip for", lead.email);
+  if (!isDripEnabled()) {
+    console.log("[drip] campaign not enabled — skipping drip for", lead.email);
     return;
   }
 
