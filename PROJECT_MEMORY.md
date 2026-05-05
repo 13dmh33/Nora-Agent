@@ -53,9 +53,15 @@ The demo uses a fake plumber site (Mike's Plumbing, Denver) to show prospects ex
 - ✅ Fixed `Twilio_Phone_NUmber` typo — code now reads both spellings as fallback
 - ✅ Vercel deployment protection disabled — endpoint publicly accessible for Twilio webhooks
 - ✅ Twilio webhook URL updated to new production URL (`nora-agent-git-main-...`)
-- ⏳ Twilio live SMS test — **blocked: trial account cannot send outbound US SMS** (needs paid upgrade + A2P 10DLC registration)
+- ⏳ Twilio live SMS test — **blocked: trial account cannot send outbound US SMS** (paused until Customer 1)
 - ⏳ Resend domain verification — pending (emails sending but from onboarding@resend.dev)
-- ⏳ Persistent lead/customer storage — pending (leads.json resets on deploy)
+
+**P3 progress as of May 5, 2026 (session 5):**
+- ✅ Leads now saved to Google Sheets — "Requested Service" tab in drip campaign spreadsheet (ID: `1SqsfXLNvJsJxWcgIvvJNgk1L0O5IL3D1S8nSc7Ss6JU`)
+- ✅ Reuses existing `GOOGLE_CREDENTIALS_JSON` service account — no new Vercel vars needed
+- ✅ Both web (`chat/route.ts`) and SMS (`sms/route.ts`) routes write to Sheets on booking
+- ✅ Twilio + A2P 10DLC work paused until Customer 1
+- ⏳ Resend domain verification — pending
 
 ---
 
@@ -83,6 +89,7 @@ ANTHROPIC_API_KEY=          # console.anthropic.com/settings/keys ✅ Vercel
 RESEND_API_KEY=             # resend.com → API Keys ✅ Vercel (Production + Preview)
 Cal_API=                    # cal.com/settings/developer/api-keys ✅ Vercel (note: named Cal_API not CAL_API_KEY)
 CONTRACTOR_EMAIL=           # where leads/alerts go (defaults to 13dmh33@gmail.com)
+GOOGLE_CREDENTIALS_JSON=    # service account JSON (stringified) ✅ Vercel — shared with drip campaign
 
 # Twilio — all 4 required to enable SMS notifications to contractor
 TWILIO_ACCOUNT_SID=
@@ -103,7 +110,7 @@ TWILIO_CONTRACTOR_PHONE=    # contractor's cell in E.164 (+1xxxxxxxxxx)
 | `nora-agent/public/widget.js` | Embeddable chat bubble (vanilla JS) |
 | `nora-agent/public/demo.html` | Standalone Mike's Plumbing demo site |
 | `nora-agent/customers.json` | Existing customer list — E.164 phone numbers |
-| `nora-agent/leads.json` | Captured leads — ephemeral on Vercel |
+| `nora-agent/leads.json` | Captured leads — legacy, superseded by Google Sheets |
 | `CLAUDE.md` | Claude Code session guidance |
 | `NORA_AGENT_REFERENCE.md` | Full project reference (mirrors Google Doc) |
 
@@ -120,6 +127,7 @@ TWILIO_CONTRACTOR_PHONE=    # contractor's cell in E.164 (+1xxxxxxxxxx)
 | Apr 21 | Development moved to Claude Code | Using claude.ai/code as primary dev environment going forward. |
 | Apr 23 | Migrated Cal.com v1 → v2 | Cal.com decommissioned v1 API entirely. v2 uses Bearer auth, `/v2/slots`, `/v2/bookings`, `start`/`end` params, `slot.start` field. |
 | Apr 23 | Vercel env var named `Cal_API` | Variable was created as `Cal_API` not `CAL_API_KEY`. Code reads both via `process.env.Cal_API \|\| process.env.CAL_API_KEY`. |
+| May 5 | Leads → Google Sheets | `leads.json` was ephemeral (reset on Vercel deploy). Now appends to "Requested Service" tab in drip campaign sheet. Reuses existing `GOOGLE_CREDENTIALS_JSON` service account. |
 
 ---
 
@@ -139,7 +147,7 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 
 | Item | Risk | Plan |
 |---|---|---|
-| `leads.json` ephemeral | Lost on every Vercel deploy | Supabase or Google Sheets — P4 |
+| ~~`leads.json` ephemeral~~ | ~~Lost on every Vercel deploy~~ | ✅ Fixed May 5 — leads write to Google Sheets |
 | `customers.json` ephemeral | Same as above | Same fix |
 | Resend domain unverified | Email delivery unreliable | Verify domain before Customer 1 |
 | SMS conversation memory in-memory | Lost on restart | Acceptable for MVP |
@@ -154,7 +162,7 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 |---|---|---|
 | 🔴 High | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
 | 🟡 Medium | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
-| 🟢 Low | Persistent lead/customer storage | leads.json + customers.json reset on deploy — Supabase or Google Sheets, P4 |
+| ✅ Done | Persistent lead storage | leads now append to Google Sheets "Requested Service" tab — May 5 |
 | ⏸️ Paused | Upgrade Twilio trial → paid | Paused until Customer 1 — unblocks live SMS + A2P (~$20 top-up at console.twilio.com) |
 | ⏸️ Paused | A2P 10DLC registration | Paused until Customer 1 — required for US outbound SMS, takes 1–2 weeks to approve |
 | ✅ Done | Set `Twilio_Phone_NUmber=+17209027555` in Vercel | Completed Apr 27 |
@@ -182,4 +190,4 @@ When onboarding a new client:
 
 ---
 
-*Last updated: April 28, 2026 (session 4)*
+*Last updated: May 5, 2026 (session 5)*
