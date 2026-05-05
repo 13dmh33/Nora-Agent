@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { google } from "googleapis";
 
 const anthropic = new Anthropic();
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
@@ -128,7 +127,7 @@ async function createBooking(input: {
       return JSON.stringify({ success: false, error: booking.message || "Booking failed" });
     }
 
-    saveLead({
+    await saveLead({
       name: input.name,
       phone: input.phone,
       email: input.email,
@@ -170,12 +169,34 @@ async function createBooking(input: {
   }
 }
 
-function saveLead(lead: Record<string, string>) {
+async function saveLead(lead: Record<string, string>) {
   try {
-    const path = join(process.cwd(), "leads.json");
-    const existing = JSON.parse(readFileSync(path, "utf8"));
-    writeFileSync(path, JSON.stringify([...existing, lead], null, 2));
-  } catch {
+    const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON!);
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: "1SqsfXLNvJsJxWcgIvvJNgk1L0O5IL3D1S8nSc7Ss6JU",
+      range: "Requested Service!A:I",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          lead.timestamp,
+          lead.name,
+          lead.phone,
+          lead.email,
+          lead.address,
+          lead.issue,
+          lead.booking_id ?? "",
+          lead.booking_time ?? "",
+          lead.source,
+        ]],
+      },
+    });
+  } catch (e: any) {
+    console.error("[saveLead] Google Sheets error:", e.message);
     // Non-fatal — lead is still emailed to contractor
   }
 }
