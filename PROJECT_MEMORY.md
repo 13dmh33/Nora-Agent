@@ -152,11 +152,11 @@ Twilio cost (~$1/mo + fractions per message) and Cal.com (free tier) built into 
 
 | Priority | Item | Notes |
 |---|---|---|
-| 🔴 High | Upgrade Twilio trial → paid | Unblocks live SMS test + A2P registration. ~$20 top-up at console.twilio.com |
-| 🔴 High | A2P 10DLC registration | Required for US outbound SMS. Start ASAP — takes 1–2 weeks to approve |
-| 🟡 Medium | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
+| 🔴 High | Resend domain verification | Emails work but come from onboarding@resend.dev — fix before Customer 1 |
+| 🟡 Medium | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
 | 🟢 Low | Persistent lead/customer storage | leads.json + customers.json reset on deploy — Supabase or Google Sheets, P4 |
-| 🟢 Low | Run prospecting workflow | Google Places scraper ready — run on target markets to fill drip pipeline |
+| ⏸️ Paused | Upgrade Twilio trial → paid | Paused until Customer 1 — unblocks live SMS + A2P (~$20 top-up at console.twilio.com) |
+| ⏸️ Paused | A2P 10DLC registration | Paused until Customer 1 — required for US outbound SMS, takes 1–2 weeks to approve |
 | ✅ Done | Set `Twilio_Phone_NUmber=+17209027555` in Vercel | Completed Apr 27 |
 | ✅ Done | Twilio webhook signature validation | Completed Apr 27 — skips gracefully in local dev |
 
